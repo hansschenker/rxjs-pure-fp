@@ -2,181 +2,40 @@
 
 ## Architectural thesis
 
-RxJS 7.8.2 defines observable behavior. `rxjs-pure-fp` replaces its historical OO runtime architecture with functions, closures, structural records, and policy composition.
+RxJS 7.8.2 defines observable behavior. `rxjs-pure-fp` reconstructs that behavior from functions, closures, structural records, and policy composition rather than classes and inheritance.
 
-The ES3 reference is anatomy material, not an implementation template.
-
-## Architectural laws
+## Non-negotiable rules
 
 - no project-defined classes;
 - no inheritance or `super`;
-- no prototype mutation or constructor/prototype OO;
-- no module-global registry for per-execution state;
-- structural type composition instead of `extends`;
-- state belongs to the narrowest lifetime that requires it;
-- pipeline construction is inert;
-- ordinary subscriptions own independent execution state;
-- shared state is introduced only by explicit sharing topology.
+- no prototype mutation/constructor-prototype OO;
+- no global registry for per-execution state;
+- runtime TypeScript uses structural intersections rather than `extends`;
+- pipeline construction stays inert;
+- mutable execution state is created per subscription unless sharing is explicit.
 
 ---
 
-# Realized runtime through M04
+# Realized kernel after Session 1
 
 ```text
-creation source
-     │
-     ▼
 Observable execution function
-     │
-     ▼
-operator child Subscriber
-     │
-     ▼
-downstream Subscriber
-     │
-     ▼
-Subscription lifecycle
+          │
+          ▼
+operator Subscriber policy
+          │
+          ▼
+Subscriber notification machine
+          │
+          ▼
+Subscription lifecycle closure
 ```
 
-## M01 — Subscription
-
-`createSubscription()` owns `closed`, parentage, and finalizers in lexical state and returns a structural lifecycle record.
-
-## M02 — Subscriber
-
-`createSubscriber(destination)` enriches the same Subscription record with lexical `isStopped`/destination state and `next/error/complete` functions. Safe user-consumer handling remains a separate adapter.
-
-## M03 — Observable
+In types:
 
 ```ts
 type Observable<T> =
   (subscriber: Subscriber<T>) => TeardownLogic;
-```
-
-`createObservable(initializer)` returns a lazy execution function. `subscribe(observer)(source)` creates/reuses a Subscriber, executes the source, and attaches returned teardown to its lifecycle.
-
-## M04 — operator layer
-
-M04 commits the permanent first-order operator shape:
-
-```ts
-type OperatorFunction<A, B> =
-  (source: Observable<A>) => Observable<B>;
-```
-
-An operator captures configuration during construction and creates execution state only when its returned Observable is subscribed.
-
-### `operate` replaces `lift`
-
-The internal functional equivalent of RxJS lift plumbing is:
-
-```text
-operate(init)
-    │
-    ▼
-source => createObservable(
-  destination => init(source, destination)
-)
-```
-
-No Operator class or `Observable.prototype.lift` is required.
-
-### functional OperatorSubscriber
-
-RxJS models operator participation with `OperatorSubscriber extends Subscriber`. M04 composes it:
-
-```text
-createOperatorSubscriber(destination, onNext)
-        │
-        ├── create ordinary functional Subscriber
-        ├── intercept source next notifications
-        ├── catch operator-callback failures
-        ├── forward error/complete
-        └── destination.add(child)
-```
-
-The last step happens **before source execution begins**.
-
-This ordering is a permanent operator invariant:
-
-```text
-child created
-    │
-child owned by downstream
-    │
-source starts
-```
-
-It guarantees that synchronous downstream cancellation propagates through the entire upstream operator chain before a synchronous source attempts its next emission.
-
-### per-subscription operator state
-
-Mutable operator state belongs inside the returned Observable initializer:
-
-```text
-map(project) construction       mapped$ subscription
--------------------------       --------------------
-capture project                 index = 0
-no index yet                    create child Subscriber
-                                subscribe source
-```
-
-The same rule applies to filter indexes and will apply to accumulators, previous-value memory, Sets, and other first-order operator state in M05.
-
----
-
-# M04 source/operator topology
-
-The first pipeline:
-
-```ts
-pipeValue(
-  of(1, 2, 3),
-  map(value => value * 10),
-  filter(value => value > 10)
-)
-```
-
-constructs a lazy topology conceptually equivalent to:
-
-```text
-of execution
-     │
- map child Subscriber
-     │
-filter child Subscriber
-     │
-user Subscriber
-```
-
-At subscription time, ownership is established from downstream to upstream, while values flow from upstream to downstream.
-
-```text
-ownership / cancellation  ◄────────
-values / notifications    ────────►
-```
-
-That opposite direction is central to RxJS execution semantics.
-
-## Error direction
-
-Projection or predicate errors are caught at the corresponding operator child and sent downstream through `error`. Terminal notification then tears down the ownership chain upstream.
-
-## `of` cancellation rule
-
-The synchronous `of` source tests `subscriber.closed` before each next emission. Synchronous cancellation from a downstream `next` therefore stops source iteration without emitting later values or a user-visible completion.
-
----
-
-# Compact functional kernel
-
-```ts
-type Subscription = {
-  readonly closed: boolean;
-  add(teardown: TeardownLogic): void;
-  remove(teardown: Exclude<TeardownLogic, void>): void;
-  unsubscribe(): void;
-};
 
 type Subscriber<T> = Subscription & {
   readonly isStopped: boolean;
@@ -185,15 +44,172 @@ type Subscriber<T> = Subscription & {
   complete(): void;
 };
 
-type Observable<T> =
-  (subscriber: Subscriber<T>) => TeardownLogic;
-
 type OperatorFunction<A, B> =
   (source: Observable<A>) => Observable<B>;
 ```
 
-After M04 these four abstractions are operational and differentially tested. M05 should extend first-order operator policies, not add another runtime object layer.
+## M01 — lifetime
+
+`createSubscription()` owns `closed`, parentage, and finalizers in lexical state.
+
+## M02 — notification participation
+
+`createSubscriber()` enriches the same lifecycle record with destination, stop-state, and the Observer protocol.
+
+## M03 — execution
+
+`createObservable()` produces a lazy execution function; standalone `subscribe` connects source execution to a functional Subscriber and its teardown lifecycle.
+
+## M04 — first-order operator topology
+
+```text
+source Observable
+      │
+      ▼
+operator child Subscriber
+      │
+      ▼
+destination Subscriber
+```
+
+The child is owned by downstream before source execution begins. Values flow downstream; cancellation ownership points upstream.
+
+---
+
+# M05 — operator behavior as policy
+
+M05 generalizes the functional operator child without introducing a new object type.
+
+```text
+createOperatorSubscriber(
+  destination,
+  onNext?,
+  onComplete?,
+  onError?,
+  onFinalize?
+)
+```
+
+The same structural Subscriber can now express:
+
+| Policy | Operators |
+| --- | --- |
+| Transform current value | `map` |
+| Gate current value | `filter` |
+| Observe notifications | `tap` |
+| Accumulate state | `scan`, `reduce` |
+| Remember previous value | `pairwise` |
+| Remember all keys | `distinct` |
+| Remember last emitted key | `distinctUntilChanged`, `distinctUntilKeyChanged` |
+
+This is the central Session 1 architectural result: **operator families differ mainly by closure state and notification policy, not by runtime class type.**
+
+## Internal Subscriber finalization hook
+
+M05's `tap` requires RxJS OperatorSubscriber finalization timing. A late-added teardown is insufficient because synchronous source completion may close the operator child before the source initializer returns its teardown.
+
+M05 therefore adds an internal Subscriber lifecycle hook:
+
+```text
+Subscriber unsubscribe
+       │
+       ├── execute lifecycle finalizers currently owned
+       ├── clear destination
+       └── run operator onFinalize hook
+```
+
+If a synchronous source returns teardown later, M01 add-to-closed semantics execute it afterward. If source teardown was already registered, it runs before the hook. This exactly models the two RxJS timing cases without an OperatorSubscriber subclass.
+
+The public `createSubscriber()` API remains unchanged; the hook-capable constructor is internal operator machinery.
+
+## Accumulation policy
+
+`scan` and `reduce` share one state machine:
+
+```text
+closure per subscription
+  hasState
+  state
+  index
+```
+
+Policy flags determine emission timing:
+
+```text
+scan    emitOnNext = true
+        emitBeforeComplete = false
+
+reduce  emitOnNext = false
+        emitBeforeComplete = true
+```
+
+Seed presence is a call-arity policy, not a value check:
+
+```text
+arguments.length >= 2
+```
+
+so explicit `undefined` remains a valid seed.
+
+## Memory policies
+
+### adjacency
+
+`pairwise` stores:
+
+```text
+previous
+hasPrevious
+```
+
+### all-history distinctness
+
+`distinct` stores a per-subscription `Set` of selected keys and can clear that state from a functional flush Observable.
+
+### consecutive distinctness
+
+`distinctUntilChanged` stores only:
+
+```text
+first
+previousKey
+```
+
+The previous key is updated before downstream emission to preserve RxJS reentrancy semantics.
+
+`distinctUntilKeyChanged` is built from `distinctUntilChanged`; it is operator algebra, not another state machine.
+
+---
+
+# State ownership after M05
+
+The narrowest-lifetime rule now has concrete examples across the runtime:
+
+| State | Lifetime |
+| --- | --- |
+| Subscription finalizers/parentage | one Subscription |
+| Subscriber `isStopped` / destination | one Subscriber |
+| map/filter index | one operator execution |
+| scan/reduce accumulator | one operator execution |
+| pairwise previous value | one operator execution |
+| distinct Set | one operator execution |
+| distinctUntilChanged previous key | one operator execution |
+
+No ordinary operator state is stored globally or at operator-definition lifetime.
+
+---
+
+# Directionality
+
+The first-order pipeline has two simultaneous directions:
+
+```text
+notifications: source ───────────────► destination
+teardown:      source ◄─────────────── destination
+```
+
+This bidirectional execution topology remains the basis for M06 gating and, later, the M07-M08 higher-order machinery.
 
 ## Compatibility policy
 
-Behavioral parity and eventual feature/export parity are required. OO invocation parity is intentionally not required; parity names such as `Observable`, `Subscriber`, and `Subscription` remain functional factories rather than constructible classes.
+Behavioral parity and eventual feature/export parity are required. Constructibility, prototype methods, and subclassing are not part of the functional kernel contract.
