@@ -1,10 +1,12 @@
 import { createOperatorSubscriber, operate, subscribeOperator, type MonoTypeOperatorFunction } from '../core/operator.ts';
-import type { Observer } from '../core/sink.ts';
 
-export type TapObserver<T> = Partial<Observer<T>> & {
-  subscribe?: () => void;
-  unsubscribe?: () => void;
-  finalize?: () => void;
+export type TapObserver<T> = {
+  next?: ((value: T) => void) | undefined;
+  error?: ((error: unknown) => void) | undefined;
+  complete?: (() => void) | undefined;
+  subscribe?: (() => void) | undefined;
+  unsubscribe?: (() => void) | undefined;
+  finalize?: (() => void) | undefined;
 };
 
 export function tap<T>(observerOrNext?: TapObserver<T> | ((value: T) => void)): MonoTypeOperatorFunction<T>;
@@ -20,7 +22,11 @@ export function tap<T>(
 ): MonoTypeOperatorFunction<T> {
   const tapObserver: TapObserver<T> | null | undefined =
     typeof observerOrNext === 'function' || error || complete
-      ? { next: typeof observerOrNext === 'function' ? observerOrNext : undefined, error: error ?? undefined, complete: complete ?? undefined }
+      ? {
+          next: typeof observerOrNext === 'function' ? observerOrNext : undefined,
+          error: error ?? undefined,
+          complete: complete ?? undefined,
+        }
       : observerOrNext;
 
   if (!tapObserver) {
