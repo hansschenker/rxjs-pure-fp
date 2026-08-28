@@ -4,87 +4,107 @@ RxJS 7.8.2 is the behavioral oracle for this project.
 
 ## Laziness
 
-Creating an Observable or composing operators must not start the described work. Execution starts only when the dataflow is subscribed to.
-
-M03 concretely enforces this by representing an Observable as a lazy execution function that is invoked only by `subscribe`.
+Creating an Observable or applying operators must not start source work. Execution begins only at subscription.
 
 ## Cold independence
 
-Unless sharing is explicitly introduced, separate subscriptions create separate executions and separate mutable execution state.
+Unless sharing is explicit, separate subscriptions create separate executions and separate mutable execution state.
 
-Creation/operator functions may capture immutable configuration, but ordinary execution state belongs inside the per-subscription execution path.
+This includes operator-local state such as indexes, accumulators, previous values, and distinct-value Sets.
 
 ## Notification protocol
 
-An execution may emit zero or more `next(value)` notifications followed by at most one terminal `complete()` or `error(error)` notification.
+An execution emits zero or more `next(value)` notifications followed by at most one terminal `complete()` or `error(error)` notification.
 
-After termination or explicit cancellation, further notifications are stopped. Optional stopped-notification reporting is out-of-band and does not re-open the execution.
+After termination or explicit cancellation, normal destination delivery stops.
 
 ## Subscriber state
 
-`closed` and `isStopped` represent different responsibilities:
-
 ```text
-closed     = teardown lifecycle has ended
-isStopped  = notifications are no longer accepted
+closed     = teardown lifecycle ended
+isStopped  = notifications no longer accepted
 ```
 
-Terminal notification normally causes both states to converge, while explicit cancellation stops notifications without creating a terminal notification.
+The two states represent different responsibilities even though terminal execution normally causes both to converge.
 
 ## Synchronous behavior
 
-If RxJS 7.8.2 executes synchronously, `rxjs-pure-fp` must preserve that ordering. Promise/scheduler deferral cannot be introduced merely to simplify implementation.
+If RxJS 7.8.2 executes synchronously, the pure functional runtime preserves ordering and cancellation visibility.
 
-A critical M03 invariant is the synchronous-completion/returned-teardown order:
-
-```text
-source complete
-subscriber closes
-source returns teardown
-subscribe attaches teardown
-add-to-closed executes teardown immediately
-```
+A source is allowed to complete before returning teardown. That returned teardown is later added to the already-closed Subscriber and therefore executes immediately.
 
 ## Source exceptions
 
-A synchronous exception thrown while the Observable source initializer is executing is routed to the active Subscriber error channel, matching RxJS's guarded source-subscription boundary.
-
-The behavior of errors thrown by raw Subscriber destinations remains distinct from errors thrown by safe user handlers.
+Synchronous exceptions thrown by a source initializer enter the Subscriber error channel.
 
 ## Cancellation and teardown
 
-Unsubscription is cancellation, not completion. Cancellation must never synthesize `complete()`.
+Unsubscription is cancellation, not completion. It must not synthesize `complete()`.
 
-A source may return teardown logic. Standalone `subscribe` attaches that returned teardown to the Subscriber lifecycle after the source call returns.
-
-Returned child Subscriptions become owned resources and are cancelled with their parent Subscriber.
-
-## Existing Subscriber identity
-
-When an already-created Subscriber is supplied to the subscription boundary, it is reused rather than wrapped in a second Subscriber/lifecycle. This preserves identity-sensitive parentage and teardown semantics.
-
-## Observable initializer context
-
-For RxJS 7.8.2 parity, the user-provided Observable initializer observes the Observable representation as `this`.
-
-In the functional runtime:
-
-```text
-initializer this === returned Observable execution function
-```
-
-No object instance or prototype is required.
+Returned source teardown becomes owned by the active Subscriber. Child Subscriptions participate in the same lifecycle ownership graph.
 
 ## Operator contract
 
-From M04 onward, a pipeable operator is permanently defined as:
+A pipeable operator is:
 
 ```ts
 type OperatorFunction<A, B> =
   (source: Observable<A>) => Observable<B>;
 ```
 
-An operator configures a new lazy execution description. It must not subscribe to the source during pipeline construction.
+Applying an operator constructs another lazy Observable. It does not subscribe immediately.
+
+## Operator ownership ordering
+
+For a first-order operator, the upstream child Subscriber must be owned by the downstream Subscriber before source execution starts:
+
+```text
+create child
+   │
+downstream.add(child)
+   │
+subscribe source with child
+```
+
+This is required for synchronous cancellation. If downstream unsubscribes inside `next`, every upstream operator child must already be reachable by teardown before a synchronous source tries to emit another value.
+
+## Operator state lifetime
+
+Mutable operator state is allocated per subscription, not per operator definition.
+
+For example:
+
+```text
+map(project)                     subscribe mapped$
+------------                     -----------------
+captures project                 index = 0
+no mutable execution state       source execution
+```
+
+The same rule applies to filter indexes and later to scan accumulators, previous-value memory, buffers, and Sets.
+
+## Operator callback failures
+
+Errors thrown by operator-owned callbacks such as a map projection or filter predicate are caught at the operator Subscriber boundary and sent downstream through `error`.
+
+This differs from an error thrown by a raw downstream Subscriber destination. Raw destination behavior follows Subscriber semantics; safe user callbacks follow safe-consumer semantics.
+
+## Value direction and ownership direction
+
+In an operator chain:
+
+```text
+values / notifications      upstream ─────► downstream
+ownership / cancellation    upstream ◄───── downstream
+```
+
+This bidirectional relationship is a permanent execution invariant.
+
+## `of` synchronous source rule
+
+The synchronous source checks `subscriber.closed` before each next emission. Downstream cancellation can therefore stop source iteration immediately.
+
+After the loop the source may still invoke `subscriber.complete()`; a stopped Subscriber decides whether that is delivered or treated as a stopped notification. Source code does not bypass Subscriber semantics.
 
 ## Higher-order execution
 
@@ -103,10 +123,10 @@ Sharing changes execution topology and must be explicit. Subject/connectable/sha
 
 ## Time
 
-Time enters through sources, clocks, and schedulers. Temporal operators reshape or gate notifications relative to that time; they do not create an unrelated time model.
+Time enters through sources, clocks, and schedulers. Temporal operators reshape or gate notifications relative to that time.
 
 ## Differential evidence
 
-Parity claims require trace evidence. At minimum traces compare execution start, notifications, subscription state, teardown, completion/error, and cancellation ordering.
+Parity claims require trace evidence. First-order traces compare value order, indexes/state reset, terminal events, errors, subscription closure, and teardown/cancellation propagation.
 
-Higher-order milestones add inner-subscription identity/lifecycle events; scheduler milestones add virtual/clock ordering.
+Higher-order milestones add inner-subscription identity; scheduler milestones add clock/virtual-time ordering.
