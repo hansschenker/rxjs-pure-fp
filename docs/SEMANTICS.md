@@ -4,129 +4,136 @@ RxJS 7.8.2 is the behavioral oracle for this project.
 
 ## Laziness
 
-Creating an Observable or applying operators must not start source work. Execution begins only at subscription.
+Observable and operator construction are inert. Source execution starts only on subscription.
 
 ## Cold independence
 
-Unless sharing is explicit, separate subscriptions create separate executions and separate mutable execution state.
+Unless sharing is explicit, every subscription owns independent execution and operator state.
 
-This includes operator-local state such as indexes, accumulators, previous values, and distinct-value Sets.
+Examples of per-subscription state now include:
+
+- map/filter indexes;
+- scan/reduce accumulator state;
+- pairwise previous value;
+- distinct Set;
+- distinctUntilChanged previous key.
 
 ## Notification protocol
 
-An execution emits zero or more `next(value)` notifications followed by at most one terminal `complete()` or `error(error)` notification.
+An execution emits zero or more `next` notifications followed by at most one `error` or `complete` terminal notification. Cancellation is not a terminal notification and must not synthesize completion.
 
-After termination or explicit cancellation, normal destination delivery stops.
-
-## Subscriber state
+## Value direction / ownership direction
 
 ```text
-closed     = teardown lifecycle ended
-isStopped  = notifications no longer accepted
+notifications      upstream ─────────► downstream
+teardown ownership upstream ◄───────── downstream
 ```
 
-The two states represent different responsibilities even though terminal execution normally causes both to converge.
+Operator children are owned by downstream before their sources execute so synchronous cancellation can reach upstream immediately.
 
-## Synchronous behavior
+## Operator callbacks
 
-If RxJS 7.8.2 executes synchronously, the pure functional runtime preserves ordering and cancellation visibility.
+Failures thrown by operator-owned callbacks are caught at the operator Subscriber boundary and sent downstream through `error`.
 
-A source is allowed to complete before returning teardown. That returned teardown is later added to the already-closed Subscriber and therefore executes immediately.
+This applies to projections, predicates, accumulators, key selectors/comparators, and tap callbacks according to the corresponding RxJS operator semantics.
 
-## Source exceptions
+## Operator finalization timing
 
-Synchronous exceptions thrown by a source initializer enter the Subscriber error channel.
+Operator finalization belongs to the Subscriber unsubscribe transition, not merely to a teardown appended after source subscription.
 
-## Cancellation and teardown
+Two valid RxJS timing shapes exist.
 
-Unsubscription is cancellation, not completion. It must not synthesize `complete()`.
-
-Returned source teardown becomes owned by the active Subscriber. Child Subscriptions participate in the same lifecycle ownership graph.
-
-## Operator contract
-
-A pipeable operator is:
-
-```ts
-type OperatorFunction<A, B> =
-  (source: Observable<A>) => Observable<B>;
-```
-
-Applying an operator constructs another lazy Observable. It does not subscribe immediately.
-
-## Operator ownership ordering
-
-For a first-order operator, the upstream child Subscriber must be owned by the downstream Subscriber before source execution starts:
+### source teardown already registered
 
 ```text
-create child
+unsubscribe
    │
-downstream.add(child)
+   ├── source teardown
+   └── operator finalize hook
+```
+
+### source completed synchronously before returning teardown
+
+```text
+source complete
    │
-subscribe source with child
+operator Subscriber finalizes
+   │
+operator finalize hook
+   │
+source returns teardown later
+   │
+add-to-closed executes source teardown
 ```
 
-This is required for synchronous cancellation. If downstream unsubscribes inside `next`, every upstream operator child must already be reachable by teardown before a synchronous source tries to emit another value.
+M05's internal Subscriber finalization hook preserves both shapes.
 
-## Operator state lifetime
+## Accumulation seed presence
 
-Mutable operator state is allocated per subscription, not per operator definition.
-
-For example:
+For `scan`/`reduce`, seed presence is determined by call arity:
 
 ```text
-map(project)                     subscribe mapped$
-------------                     -----------------
-captures project                 index = 0
-no mutable execution state       source execution
+arguments.length >= 2
 ```
 
-The same rule applies to filter indexes and later to scan accumulators, previous-value memory, buffers, and Sets.
+Explicit `undefined` is therefore a supplied seed. Value-based tests such as `seed !== undefined` are semantically incorrect.
 
-## Operator callback failures
+## Accumulator index
 
-Errors thrown by operator-owned callbacks such as a map projection or filter predicate are caught at the operator Subscriber boundary and sent downstream through `error`.
+The accumulation index increments for every source value, including a first unseeded value that becomes state without calling the accumulator. Therefore the first accumulator call of an unseeded scan/reduce receives index 1.
 
-This differs from an error thrown by a raw downstream Subscriber destination. Raw destination behavior follows Subscriber semantics; safe user callbacks follow safe-consumer semantics.
+## Reduce termination
 
-## Value direction and ownership direction
+`reduce` emits accumulated state only before successful completion:
 
-In an operator chain:
+- empty + no seed → no value, complete;
+- empty + seed → seed, complete;
+- source error/cancellation → no completion-time accumulation emission.
 
-```text
-values / notifications      upstream ─────► downstream
-ownership / cancellation    upstream ◄───── downstream
-```
+## Adjacent memory
 
-This bidirectional relationship is a permanent execution invariant.
+`pairwise` stores the current source value as `previous` and emits only once a previous value exists. State resets with every subscription.
 
-## `of` synchronous source rule
+## Distinct Set semantics
 
-The synchronous source checks `subscriber.closed` before each next emission. Downstream cancellation can therefore stop source iteration immediately.
+`distinct` uses JavaScript Set semantics for selected keys. This includes SameValueZero behavior such as `NaN` matching `NaN`.
 
-After the loop the source may still invoke `subscriber.complete()`; a stopped Subscriber decides whether that is delivered or treated as a stopped notification. Source code does not bypass Subscriber semantics.
+A flush emission clears the Set but does not itself emit a source value or complete the destination. A flush-source error is still an error of the resulting Observable.
+
+## Consecutive distinctness
+
+`distinctUntilChanged`:
+
+1. always selects/emits the first value;
+2. applies the key selector to every value including the first;
+3. compares new key against the key of the previous **emitted** value;
+4. updates the stored key before downstream `next` to preserve reentrancy correctness.
+
+Its default comparator is `===`, not Set/SameValueZero semantics. Consequently consecutive NaN values are considered changed.
+
+## `distinctUntilKeyChanged`
+
+This is semantically derivable from `distinctUntilChanged` by comparing one property of consecutive emitted objects. No separate state policy is required.
 
 ## Higher-order execution
 
-Inner subscriptions are execution resources. Their creation, coexistence, queueing, replacement, cancellation, completion, and errors must match RxJS 7.8.2.
+Future inner subscriptions are execution resources. Their creation, coexistence, replacement, queueing, cancellation, completion, and errors must remain explicit and differentially tested.
 
 Canonical flattening policies:
 
 - `mergeMap`: allow overlap;
 - `concatMap`: queue while busy;
-- `switchMap`: cancel/replace with latest;
-- `exhaustMap`: ignore new inner work while busy.
+- `switchMap`: cancel previous / keep latest;
+- `exhaustMap`: ignore new work while busy.
 
 ## Sharing
 
-Sharing changes execution topology and must be explicit. Subject/connectable/share introduce shared participation; ordinary Observables remain independently executed.
+Sharing changes execution topology and must be explicit. Ordinary Observables remain independently executed until Subject/connectable/share semantics are intentionally introduced.
 
 ## Time
 
-Time enters through sources, clocks, and schedulers. Temporal operators reshape or gate notifications relative to that time.
+Time enters through source clocks and schedulers. Temporal operators must preserve RxJS ordering and cancellation behavior rather than introducing unrelated Promise timing.
 
 ## Differential evidence
 
-Parity claims require trace evidence. First-order traces compare value order, indexes/state reset, terminal events, errors, subscription closure, and teardown/cancellation propagation.
-
-Higher-order milestones add inner-subscription identity; scheduler milestones add clock/virtual-time ordering.
+Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contains 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies.

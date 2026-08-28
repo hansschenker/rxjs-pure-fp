@@ -30,6 +30,10 @@ export type SubscriberFactory = {
   ): Subscriber<T>;
 };
 
+type SubscriberHooks = {
+  onFinalize?: (() => void) | undefined;
+};
+
 export const EMPTY_OBSERVER: Readonly<Observer<unknown>> & { readonly closed: true } = {
   closed: true,
   next() {},
@@ -39,12 +43,18 @@ export const EMPTY_OBSERVER: Readonly<Observer<unknown>> & { readonly closed: tr
   complete() {},
 };
 
+/** Public M02 constructor: no lifecycle hooks. */
+export const createSubscriber = <T>(destination?: Observer<T> | Subscriber<T>): Subscriber<T> =>
+  createSubscriberWithHooks(destination);
+
 /**
- * Composes the M01 subscription lifecycle with the Observer protocol.
- * Stop-state and destination state are lexical; the returned value is the same
- * structural subscription record, enriched with notification functions.
+ * Internal composition point used by operator machinery that needs behavior
+ * after the Subscriber lifecycle has successfully finalized.
  */
-export const createSubscriber = <T>(destination?: Observer<T> | Subscriber<T>): Subscriber<T> => {
+export const createSubscriberWithHooks = <T>(
+  destination?: Observer<T> | Subscriber<T>,
+  hooks: SubscriberHooks = {}
+): Subscriber<T> => {
   const lifecycle = createSubscription();
   const unsubscribeLifecycle = lifecycle.unsubscribe;
   let isStopped = false;
@@ -56,6 +66,7 @@ export const createSubscriber = <T>(destination?: Observer<T> | Subscriber<T>): 
       isStopped = true;
       unsubscribeLifecycle();
       currentDestination = null;
+      hooks.onFinalize?.();
     }
   };
 
@@ -134,10 +145,6 @@ export const createSubscriber = <T>(destination?: Observer<T> | Subscriber<T>): 
   return subscriber;
 };
 
-/**
- * Adapts callback-style or partial-observer consumers into a guarded subscriber.
- * User-handler failures are reported out of band, matching RxJS SafeSubscriber.
- */
 export const createSafeSubscriber = <T>(
   observerOrNext?: PartialObserver<T> | ((value: T) => void) | null,
   error?: ((error: unknown) => void) | null,
@@ -170,11 +177,6 @@ export const createSafeSubscriber = <T>(
 
 const subscriberFactory = <T>(destination?: Observer<T> | Subscriber<T>): Subscriber<T> => createSubscriber(destination);
 
-/**
- * RxJS 7.8.2 root-parity name. This remains an ordinary function rather than
- * a constructible class. Its deprecated `.create` helper is retained as a
- * function property and delegates to the safe-consumer adapter.
- */
 export const Subscriber = Object.assign(subscriberFactory, {
   create: <T>(
     next?: ((value: T) => void) | null,
