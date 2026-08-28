@@ -2,7 +2,7 @@
 
 ## Session grouping
 
-M00 is the project foundation. The 20 runtime milestones are grouped into four five-milestone working sessions:
+M00 is the project foundation. Runtime work is grouped into four five-milestone sessions:
 
 ```text
 Session 1  M01-M05
@@ -11,95 +11,87 @@ Session 3  M11-M15
 Session 4  M16-M20
 ```
 
-## M00-M05: establish and prove the kernel
+## Session 1 — establish the kernel and first-order vocabulary
 
-- **M00 Foundation ✅** — oracle, ES3 reference boundary, architecture gate, differential harness, build and parity tooling.
-- **M01 Functional Subscription ✅** — closure-owned teardown state, idempotent cancellation, ownership/removal, structural finalizers, aggregated teardown errors.
-- **M02 Functional Sink ✅** — `next/error/complete`, stopped state, raw versus safe consumer boundary, lifecycle chaining, config-driven reports.
-- **M03 Functional Observable ✅** — lazy execution function, standalone subscribe, independent execution, source teardown attachment, RxJS-compatible `pipe`.
-- **M04 First Functional Pipeline — next** — `of`, `map`, `filter`, data-first composition, end-to-end differential proof.
-- **M05 Projection & Querying** — expand to tap/scan/reduce/pairwise/distinct variants and certify family behavior.
+- **M01 Functional Subscription ✅** — closure-owned lifecycle and teardown ownership.
+- **M02 Functional Sink ✅** — notification state composed with lifecycle.
+- **M03 Functional Observable ✅** — lazy execution function and standalone subscription.
+- **M04 First Functional Pipeline ✅** — `of`, `map`, `filter`, functional operator plumbing, end-to-end pipeline.
+- **M05 Projection & Querying — next** — tap/scan/reduce/pairwise/distinct family and generalized terminal/finalization operator policies.
 
-## What M03 established for M04
+## What M04 established for M05
 
-M04 does not need another execution mechanism. It can define creation and operators entirely in terms of the existing kernel:
-
-```text
-creation operator
-      │
-      ▼
-Observable execution function
-      │
-      ▼
-operator(source)
-      │
-      ▼
-new Observable execution function
-      │
-      ▼
-subscribe(observer)
-```
-
-The permanent M01-M03 assumptions are:
-
-- Observable construction is inert;
-- each ordinary subscription executes the source independently;
-- Subscriber is the notification boundary;
-- Subscription owns all teardown;
-- synchronous termination can occur before returned teardown is attached;
-- adding teardown to a closed Subscriber executes it immediately;
-- cancellation is not completion;
-- source exceptions enter the Subscriber error channel;
-- an existing Subscriber retains identity.
-
-## M04 acceptance target
-
-The first complete functional pipeline should be expressible as:
-
-```ts
-const result$ = pipeValue(
-  of(1, 2, 3),
-  map(value => value * 10),
-  filter(value => value > 10)
-);
-
-subscribe({ next: console.log })(result$);
-```
-
-Expected values:
+M05 can build every first-order operator as a policy over the M01-M04 kernel:
 
 ```text
-20
-30
+source Observable
+      │
+      ▼
+operator child Subscriber
+      │
+      ▼
+destination Subscriber
 ```
 
-The implementation must prove end-to-end parity against RxJS 7.8.2 for value ordering, projection/predicate errors, completion, and cancellation through an operator chain.
+Permanent first-order rules:
 
-## M05-M20: recover the complete RxJS 7.8.2 machine
+1. operator construction is lazy;
+2. mutable operator state is allocated per subscription;
+3. the operator child is attached to downstream ownership before source execution;
+4. operator callback errors enter the downstream error channel;
+5. downstream cancellation closes operator children synchronously;
+6. synchronous sources observe upstream closure before their next emission;
+7. terminal notifications tear down the chain;
+8. cancellation never synthesizes completion.
 
-- **M05 Projection & querying** — map/filter/tap/scan/reduce/pairwise/distinct family.
+## M05 acceptance target
+
+M05 expands the first-order vocabulary while reusing the same execution topology:
+
+- `tap`
+- `scan`
+- `reduce`
+- `pairwise`
+- `distinct`
+- `distinctUntilChanged`
+- `distinctUntilKeyChanged`
+
+The functional OperatorSubscriber helper may be generalized to support custom error, complete, and finalize policies, but the lifecycle/Observable model must not be redesigned.
+
+M05 must differentially verify state reset per subscription, accumulator/seed behavior, completion-time emission, previous-value memory, distinct Set/key policies, callback failures, and finalization ordering where applicable.
+
+## Remaining sessions
+
+### Session 2 — M06-M10
+
 - **M06 Selection & gating** — take/skip/first/last/single/elementAt and notifier/value variants.
-- **M07 Higher-order kernel** — shared inner-subscription execution machinery.
-- **M08 Flattening policies** — mergeMap/concatMap/switchMap/exhaustMap and flattening relatives.
+- **M07 Higher-order kernel** — inner-subscription execution machinery.
+- **M08 Flattening policies** — mergeMap/concatMap/switchMap/exhaustMap and relatives.
 - **M09 Multi-source coordination** — merge/concat/combineLatest/zip/race/forkJoin/withLatestFrom.
-- **M10 Functional Subjects** — Subject, BehaviorSubject, ReplaySubject, AsyncSubject.
-- **M11 Sharing topology** — connectable/connect/share/shareReplay and multicast semantics.
-- **M12 Error & resubscription** — catchError/retry/retryWhen/repeat/repeatWhen/finalize.
-- **M13 Scheduler kernel** — queue/asap/async/animation-frame policies without scheduler classes.
+- **M10 Functional Subjects** — Subject/BehaviorSubject/ReplaySubject/AsyncSubject.
+
+### Session 3 — M11-M15
+
+- **M11 Sharing topology** — connectable/connect/share/shareReplay.
+- **M12 Error & resubscription** — catchError/retry/repeat/finalize families.
+- **M13 Scheduler kernel** — queue/asap/async/animation-frame policies.
 - **M14 Temporal operators** — timer/interval/delay/debounce/audit/throttle/sample/timeout.
 - **M15 Boundary & collection** — buffer/window/groupBy families.
+
+### Session 4 — M16-M20
+
 - **M16 Platform sources** — events/callbacks/ajax/fetch/WebSocket.
-- **M17 Testing runtime** — virtual time and TestScheduler-equivalent capability.
-- **M18 Remaining 7.8.2 surface** — uncommon and deprecated-but-public feature gaps.
-- **M19 Package parity** — subpath exports, declarations, ESM/CJS package surfaces.
-- **M20 Differential certification** — final behavioral and export parity matrix.
+- **M17 Testing runtime** — virtual time/TestScheduler-equivalent capability.
+- **M18 Remaining 7.8.2 surface** — close uncommon/deprecated public gaps.
+- **M19 Package parity** — strict subpath/declaration/ESM/CJS compatibility.
+- **M20 Differential certification** — final behavioral/export matrix.
 
 ## Milestone gates
 
-Every milestone satisfies three independent gates:
+Every milestone must satisfy:
 
 1. **Architecture** — no classes, inheritance, or disguised prototype OO.
-2. **API scope** — promised exports/capabilities exist and parity reporting remains honest.
-3. **Behavior** — differential traces match `rxjs@7.8.2` for the milestone scenarios.
+2. **API scope** — exports/capabilities promised by the milestone are tracked honestly.
+3. **Behavior** — differential traces match `rxjs@7.8.2`.
 
-The README is the canonical public milestone narrative; this document is the execution checklist.
+`README.md` is the canonical public milestone narrative; this document is the execution checklist.
