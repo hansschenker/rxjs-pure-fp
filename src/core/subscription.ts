@@ -162,12 +162,6 @@ export const createSubscription = (initialTeardown?: () => void): Subscription =
  */
 export const Subscription = (initialTeardown?: () => void): Subscription => createSubscription(initialTeardown);
 
-export const EMPTY_SUBSCRIPTION: Subscription = (() => {
-  const empty = createSubscription();
-  empty.unsubscribe();
-  return empty;
-})();
-
 export const isSubscription = (value: unknown): value is Subscription => {
   if (isInternalSubscription(value)) {
     return true;
@@ -235,3 +229,9 @@ const removeFirst = <T>(values: T[], value: T): void => {
 };
 
 const isFunction = (value: unknown): value is (...args: never[]) => unknown => typeof value === 'function';
+
+export const EMPTY_SUBSCRIPTION: Subscription = (() => {
+  const empty = createSubscription();
+  empty.unsubscribe();
+  return empty;
+})();
