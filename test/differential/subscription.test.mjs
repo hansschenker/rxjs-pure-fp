@@ -48,11 +48,46 @@ const removalTrace = ({ create }) => {
   return events;
 };
 
+const childRemovalTrace = ({ create }) => {
+  const events = [];
+  const parent = create(() => events.push('parent'));
+  const child = create(() => events.push('child'));
+
+  parent.add(child);
+  parent.remove(child);
+  parent.unsubscribe();
+  const childClosedAfterParent = child.closed;
+  child.unsubscribe();
+
+  return {
+    events,
+    parentClosed: parent.closed,
+    childClosedAfterParent,
+    childClosedFinally: child.closed,
+  };
+};
+
 const closedAddTrace = ({ create }) => {
   const events = [];
   const subscription = create();
   subscription.unsubscribe();
   subscription.add(() => events.push('late'));
+  return events;
+};
+
+const unsubscribableTrace = ({ create }) => {
+  const events = [];
+  const finalizer = {
+    unsubscribe() {
+      events.push('unsubscribe-object');
+    },
+  };
+  const subscription = create();
+
+  subscription.add(finalizer);
+  subscription.unsubscribe();
+  subscription.add(finalizer);
+
   return events;
 };
 
@@ -113,7 +148,9 @@ const errorTrace = ({ create }) => {
 for (const [name, trace] of Object.entries({
   lifecycleTrace,
   removalTrace,
+  childRemovalTrace,
   closedAddTrace,
+  unsubscribableTrace,
   parentageTrace,
   errorTrace,
 })) {
