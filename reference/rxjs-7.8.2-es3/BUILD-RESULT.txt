@@ -1,0 +1,7 @@
+JavaScript files: 250
+Source: RxJS 7.8.2
+Compiler: TypeScript 4.2.4
+Target: ES3
+Module: CommonJS
+Syntax verification: PASS
+Runtime smoke test: PASS
