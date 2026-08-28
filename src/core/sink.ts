@@ -244,4 +244,7 @@ const handleStoppedNotification = <T>(notification: ObservableNotification<T>, s
 const bindFunction = <TArgs extends unknown[]>(
   fn: (...args: TArgs) => void,
   thisArg: object
-): ((...args: TArgs) => void) => Function.prototype.bind.call(fn, thisArg) as (...args: TArgs) => void;
+): ((...args: TArgs) => void) =>
+  (...args) => {
+    Reflect.apply(fn, thisArg, args);
+  };
