@@ -13,6 +13,14 @@ Original artifact properties:
 - Runtime smoke test: passed
 - Artifact SHA-256: `b274b8fb3d87c47b96623965abd67cf218a2bd5ec4e0ae856a0455641a5799c9`
 
-M00 commits the core files most useful for studying Subscription, Subscriber, Observable, Subject, representative operators, and scheduler inheritance. Additional immutable reference files may be copied from the same verified artifact when a later milestone reaches that subsystem.
+M00 commits only the execution-core files needed for M01-M04:
 
-Do not import these files into the implementation. Their purpose is to expose responsibilities and state transitions after TypeScript class syntax has been erased.
+- `internal/Subscription.js`
+- `internal/Subscriber.js`
+- `internal/Observable.js`
+- `internal/operators/OperatorSubscriber.js`
+- `internal/operators/map.js`
+
+The files are copied byte-for-byte from the verified ES3 artifact. Later milestones may copy additional immutable reference files from that same artifact when they reach Subjects, sharing, schedulers, higher-order execution, or another subsystem.
+
+Do not import these files into the implementation. Their purpose is to expose responsibilities and state transitions after TypeScript class syntax has been erased, not to provide the target architecture.
