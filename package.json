@@ -22,9 +22,9 @@
     "verify": "npm run typecheck && npm run lint && npm run architecture:check && npm run test && npm run test:differential && npm run build && npm run parity:exports && npm run dist:check"
   },
   "devDependencies": {
+    "@typescript/typescript6": "6.0.2",
     "rxjs": "7.8.2",
-    "typescript": "7.0.2",
-    "typescript-api": "npm:@typescript/typescript6@6.0.3"
+    "typescript": "7.0.2"
   },
   "license": "Apache-2.0"
 }
