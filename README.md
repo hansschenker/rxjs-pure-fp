@@ -52,11 +52,62 @@ Implementation code under `src/` must not use project-defined classes, inheritan
 
 Functions, closures, structural objects, discriminated unions, higher-order functions, and localized mutable execution state are expected. Platform constructors such as `Error`, `Map`, `Set`, or `AbortController` remain available where appropriate.
 
-## Current status — M01 Functional Subscription
+The source gate currently enforces the stronger rule that even type-level `extends` is absent from runtime source. Type composition uses structural intersections.
 
-M01 implements the first real RxJS runtime responsibility: **the Subscription lifecycle**.
+---
 
-Instead of translating the RxJS `Subscription` class into another constructor/prototype shape, M01 decomposes its responsibilities and rebuilds them with lexical state and functions:
+# Current status — M02 Functional Sink
+
+M02 reconstructs the second major runtime responsibility: **the RxJS Subscriber / sink notification machine**.
+
+RxJS 7.8.2 expresses the relationship through inheritance:
+
+```text
+Subscription
+     ▲
+     │
+ Subscriber
+     ▲
+     │
+SafeSubscriber
+```
+
+`rxjs-pure-fp` separates those responsibilities and composes them:
+
+```text
+createSubscription()
+        │
+        │ lifecycle ownership
+        ▼
+structural Subscription record
+        │
+        │ enrich same record
+        ▼
+createSubscriber(destination)
+        │
+        ├── closure: isStopped
+        ├── closure: destination
+        ├── next(value)
+        ├── error(error)
+        ├── complete()
+        └── unsubscribe()
+
+partial observer / callbacks
+        │
+        ▼
+safe consumer adapter
+        │
+        ▼
+createSubscriber(...)
+```
+
+The important point is that **Subscriber is not a second lifecycle object**. M02 takes the structural record produced by M01 and enriches that same record with the Observer protocol. This preserves the identity-sensitive parent/child teardown behavior already established by M01.
+
+The enrichment uses own properties on the record. It does not modify a prototype and does not create an inheritance chain.
+
+## M01 foundation — lifecycle
+
+M01 established the functional Subscription machine:
 
 ```text
 createSubscription(initialTeardown?)
@@ -72,108 +123,266 @@ createSubscription(initialTeardown?)
               └── unsubscribe()
 ```
 
-Nothing in this runtime primitive is a project-defined class or constructor instance. There is no prototype-owned behavior and no global registry holding subscription state.
+Its tested contract includes idempotent cancellation, parent/child teardown ownership, explicit removal, structural unsubscribables, add-after-close behavior, ordered finalization, and aggregated teardown errors.
 
-### What happens during unsubscribe
+M02 composes this lifecycle rather than inheriting it.
+
+## M02 notification state machine
+
+A raw functional Subscriber has two independent but coordinated state dimensions:
 
 ```text
-open subscription
+Lifecycle state                Notification state
+---------------                ------------------
+closed                         isStopped
+finalizers                     destination
+parentage                      next/error/complete
+```
+
+The states meet at terminal notifications and direct cancellation.
+
+### `next(value)`
+
+```text
+next(value)
+    │
+    ├── isStopped = false ──► destination.next(value)
+    │
+    └── isStopped = true  ──► optional stopped-notification report
+```
+
+A raw destination is deliberately raw. If its `next` handler throws, that error propagates synchronously and the Subscriber remains open, matching RxJS 7.8.2 `Subscriber` behavior.
+
+### `error(error)`
+
+```text
+error(error)
+    │
+    ├── already stopped
+    │       └── optional stopped-notification report
+    │
+    └── active
+            ├── isStopped = true
+            ├── destination.error(error)
+            └── unsubscribe() in finally
+```
+
+Even if the raw destination's `error` handler throws, teardown still runs because finalization occurs in `finally`.
+
+### `complete()`
+
+```text
+complete()
+    │
+    ├── already stopped
+    │       └── optional stopped-notification report
+    │
+    └── active
+            ├── isStopped = true
+            ├── destination.complete()
+            └── unsubscribe() in finally
+```
+
+Completion is terminal and triggers teardown. Direct `unsubscribe()` also sets the Subscriber to stopped, but cancellation does **not** synthesize a completion notification.
+
+## `closed` and `isStopped` are different ideas
+
+M02 preserves an important RxJS distinction:
+
+```text
+closed     = lifecycle has been torn down
+isStopped  = notifications are no longer accepted
+```
+
+For normal terminal execution they move together, but they express different responsibilities. That separation becomes important when operators and Observable execution are introduced.
+
+## Destination chaining
+
+If a Subscriber is used as another Subscriber's destination, M02 preserves RxJS's ownership topology:
+
+```text
+parent Subscriber
+       │
+       │ owns child lifecycle
+       ▼
+child Subscriber
+```
+
+Unsubscribing the destination parent tears down the child. This works because M02 composes the already-tested M01 Subscription record rather than introducing a parallel lifecycle representation.
+
+## Raw Subscriber versus safe consumer
+
+RxJS makes an important distinction between `Subscriber` and `SafeSubscriber` / `ConsumerObserver`. M02 keeps the distinction, but expresses it as function composition.
+
+### Raw boundary
+
+```text
+source/operator code
       │
       ▼
-unsubscribe()
+createSubscriber(destination)
       │
-      ├── closed = true first
-      ├── detach from every parent
-      ├── run initial teardown
-      ├── run registered finalizers in order
-      ├── continue even if finalizers throw
-      ├── flatten nested unsubscription errors
-      └── remain permanently closed
+      ▼
+raw destination functions
 ```
 
-The first call performs the lifecycle transition. Later calls are no-ops, matching RxJS 7.8.2 idempotence.
+Errors thrown by a raw destination are not automatically converted into asynchronous unhandled errors.
 
-### Parent/child ownership
+### Safe user-consumer boundary
 
-When one functional subscription is added to another, the parent owns the child's teardown. A child can belong to multiple parents. If the child unsubscribes first, it removes itself from every parent. If a parent explicitly removes the child, ownership is removed without cancelling the child.
+```text
+partial observer / callbacks
+          │
+          ▼
+consumer adapter
+  try/catch each handler
+          │
+          ▼
+createSubscriber(...)
+```
 
-Cross-record parent bookkeeping uses module-private symbol-keyed functions. They are internal closure-coordination hooks, not public methods or prototype machinery.
-
-### Finalizers
-
-M01 supports the same important finalizer forms as RxJS 7.8.2:
-
-- teardown functions;
-- child subscriptions;
-- structural objects with `unsubscribe()`;
-- duplicate function finalizers;
-- immediate finalization when added after the subscription is already closed.
-
-`remove()` removes one matching finalizer occurrence at a time, matching RxJS behavior for duplicate function/object finalizers.
-
-### Teardown errors
-
-All finalizers are attempted even if an earlier teardown throws. Errors are collected and raised as one `UnsubscriptionError`. If a child teardown already produced a functional `UnsubscriptionError`, its inner errors are flattened into the parent aggregate, matching the RxJS 7.8.2 lifecycle trace and message shape.
-
-### Functional API and RxJS parity names
-
-The canonical FP entry point is:
+`Subscriber.create(...)` retains the deprecated RxJS 7.8.2 helper shape and delegates to this safe adapter. The public parity name `Subscriber` remains a normal function, not a constructible class.
 
 ```ts
-const subscription = createSubscription(() => {
-  // initial teardown
-});
-
-subscription.add(() => {
-  // additional finalizer
-});
-
-subscription.unsubscribe();
+const subscriber = Subscriber.create(
+  value => console.log(value),
+  error => console.error(error),
+  () => console.log('complete')
+);
 ```
 
-RxJS 7.8.2 publicly exports `Subscription` and `UnsubscriptionError`, so M01 also exposes those names. In `rxjs-pure-fp` they are **ordinary arrow-function factories**, not constructible classes:
+`new Subscriber()` intentionally fails. OO invocation compatibility is not part of the functional kernel contract.
+
+The canonical FP constructor is:
 
 ```ts
-const subscription = Subscription();
-const error = UnsubscriptionError([new Error('boom')]);
+const subscriber = createSubscriber({
+  next: value => console.log(value),
+  error: error => console.error(error),
+  complete: () => console.log('complete')
+});
 ```
 
-`new Subscription()` and `new UnsubscriptionError()` intentionally fail. OO invocation compatibility is not part of the kernel contract.
+## User-handler errors
 
-`createSubscription` is recorded in `reference/functional-exports.json` as a deliberate FP-only root extension so the parity tooling can distinguish intentional functional API from accidental exports.
+The safe consumer adapter mirrors RxJS's boundary behavior:
 
-### M01 verification status
+- a thrown user `next` handler is reported asynchronously;
+- a thrown user `error` handler is reported asynchronously;
+- a thrown user `complete` handler is reported asynchronously;
+- an error notification without a supplied error handler is reported asynchronously;
+- the Subscriber's lifecycle is not confused with that out-of-band error reporting.
 
-Current evidence after M01:
+M02 implements the relevant `config.onUnhandledError` hook and differentially verifies the asynchronous behavior.
 
-- **11 unit tests** pass across M00/M01;
-- **7 M01 differential lifecycle traces** match `rxjs@7.8.2`;
-- architecture gate passes for all TypeScript runtime source;
+## Stopped notifications
+
+Notifications sent after completion, error, or explicit unsubscription are not delivered to the destination. By default they are ignored.
+
+If `config.onStoppedNotification` is configured, M02 reports them asynchronously, matching RxJS 7.8.2:
+
+```text
+stopped Subscriber
+      │
+      ├── next(value)
+      ├── error(error)
+      └── complete()
+              │
+              ▼
+     onStoppedNotification
+       on another job
+```
+
+The callback receives the notification shape and the stopped Subscriber record.
+
+## Deprecated next context
+
+RxJS 7.8.2 still contains the deprecated `config.useDeprecatedNextContext` compatibility path. M02 preserves the behavior without copying RxJS's `Function.prototype.bind` technique.
+
+Instead, the functional implementation creates a context value and uses a closure plus `Reflect.apply`:
+
+```text
+handler + context
+       │
+       ▼
+closure(args)
+       │
+       ▼
+Reflect.apply(handler, context, args)
+```
+
+This was an architectural discovery during M02: the no-prototype gate rejected the first direct translation of RxJS's binding trick, forcing a cleaner functional representation.
+
+## Config scope introduced by M02
+
+`config` is now a root parity export because it participates directly in Subscriber semantics.
+
+M02 behaviorally exercises:
+
+- `config.onUnhandledError`;
+- `config.onStoppedNotification`;
+- `config.useDeprecatedNextContext` at the unit level.
+
+The object also carries the RxJS 7.8.2 fields `Promise` and `useDeprecatedSynchronousErrorHandling`. Their complete observable-level behavior is **not** claimed by M02; later milestones will certify those paths when the corresponding execution APIs exist.
+
+## Multi-file TypeScript source strategy
+
+M02 is the first milestone where the runtime spans several TypeScript modules. Source tests execute TypeScript directly under Node 22, while distributable builds emit JavaScript.
+
+The project therefore enables TypeScript's relative-import extension rewriting:
+
+```json
+"rewriteRelativeImportExtensions": true
+```
+
+Runtime source modules can use explicit `.ts` relative specifiers during direct source execution, and TypeScript rewrites them to emitted JavaScript paths for ESM/CommonJS builds. This is now shared infrastructure for later milestones.
+
+## M02 verification status
+
+Latest verified M02 evidence:
+
+- **16 / 16 unit tests** pass across M00-M02;
+- **9 M02 differential traces** match `rxjs@7.8.2`;
+- **17 / 17 total differential tests** pass including M00 and M01 evidence;
+- architecture gate passes for **6 TypeScript runtime source files**;
 - ESM, CommonJS, and declaration builds pass;
-- distribution class/prototype architecture checks pass;
-- RxJS root export parity is **2 / 175 = 1.1%** (`Subscription`, `UnsubscriptionError`);
-- one deliberate functional root extension exists: `createSubscription`;
+- distribution architecture check passes for **12 emitted JavaScript files**;
+- RxJS root export parity is **4 / 175 = 2.3%**;
+- implemented RxJS root parity names are `Subscription`, `UnsubscriptionError`, `Subscriber`, and `config`;
+- deliberate functional root extensions are `createSubscription` and `createSubscriber`;
 - unexpected root exports: **0**.
 
-The seven differential M01 scenarios cover lifecycle ordering, duplicate finalizer removal, explicit child removal, add-after-close behavior, structural unsubscribables, multi-parent child ownership, and nested teardown-error aggregation.
+The nine M02 differential scenarios cover:
 
-## Milestone roadmap
+1. ordinary next/complete/stopped notification behavior;
+2. direct unsubscribe behavior;
+3. Subscriber destination/lifecycle chaining;
+4. raw `next` handler failure semantics;
+5. raw `error` handler failure plus guaranteed finalization;
+6. safe callback adaptation;
+7. asynchronous safe-handler error reporting;
+8. asynchronous reporting when no error handler exists;
+9. asynchronous stopped-notification reporting.
+
+---
+
+# Milestone roadmap
 
 ### M00 — Foundation ✅
 
-Established the behavioral oracle, immutable reference boundary, architecture enforcement, differential testing, export measurement, reproducible build system, and canonical project documentation.
+Established the RxJS 7.8.2 behavioral oracle, immutable ES3 reference boundary, architecture enforcement, differential testing, export measurement, reproducible build system, and canonical project documentation.
 
 ### M01 — Functional Subscription ✅
 
-Replaced `Subscription` class architecture with closure-owned lifecycle state and a structural record. Implemented teardown registration, idempotent unsubscribe, nested ownership, explicit removal, structural unsubscribables, immediate teardown after closure, and aggregated teardown-error semantics. Differential lifecycle traces match RxJS 7.8.2.
+Replaced `Subscription` class architecture with closure-owned lifecycle state and a structural record. Implemented teardown registration, idempotent unsubscribe, nested ownership, explicit removal, structural unsubscribables, immediate teardown after closure, and aggregated teardown-error semantics. Seven differential lifecycle traces match RxJS 7.8.2.
 
-### M02 — Functional Sink — next
+### M02 — Functional Sink ✅
 
-Replace `Subscriber`/`SafeSubscriber` inheritance responsibilities with composed sink functions and lifecycle guards. Implement the `next/error/complete` protocol, stopped-state behavior, forwarding, user-handler errors, and finalization while composing the M01 Subscription lifecycle instead of inheriting from it.
+Replaced `Subscription ← Subscriber ← SafeSubscriber` inheritance with composition of the M01 lifecycle record, lexical stop/destination state, structural notification functions, and a separate safe consumer adapter. Nine new differential traces match RxJS 7.8.2, including asynchronous user-error and stopped-notification behavior.
 
-### M03 — Functional Observable
+### M03 — Functional Observable — next
 
-Introduce the lazy Observable execution description and standalone `subscribe`. Pipeline construction remains inert; each subscription creates independent execution state. No `lift`, Observable class, or prototype methods are required by the kernel.
+Introduce the lazy Observable execution description and standalone `subscribe`. Pipeline construction must remain inert; each subscription creates independent execution state. M03 will compose the M01 lifecycle and M02 sink into the first actual Observable execution boundary without `Observable` class, `lift`, or prototype methods.
 
 ### M04 — First Functional RxJS Pipeline
 
@@ -243,6 +452,8 @@ Complete public subpath exports, declarations, ESM/CommonJS surfaces, and packag
 
 Run the complete behavioral and export parity matrix. The target is the same observable behavior and feature capability with a different runtime architecture.
 
+---
+
 ## Reference material
 
 `reference/rxjs-7.8.2-es3/` contains an immutable execution-core slice of the verified ES3/CommonJS build: `Subscription`, `Subscriber`, `Observable`, `OperatorSubscriber`, and representative `map`. It is read-only anatomy material. Later milestones may add exact files from the same verified artifact when they reach Subjects, sharing, schedulers, higher-order execution, or another subsystem.
@@ -267,7 +478,7 @@ Individual gates are available as `typecheck`, `lint`, `architecture:check`, `te
 
 ## Documentation
 
-- `docs/ARCHITECTURE.md` — target functional architecture and state ownership.
+- `docs/ARCHITECTURE.md` — realized functional kernel and state ownership.
 - `docs/SEMANTICS.md` — RxJS 7.8.2 semantic invariants that must survive reimplementation.
 - `docs/FUNCTIONAL-RUNTIME.md` — functional decomposition and policy-composition heuristics.
 - `docs/ES3-TO-FP-MAPPING.md` — how to read the ES3 runtime without copying its OO architecture.
