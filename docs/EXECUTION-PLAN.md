@@ -1,97 +1,135 @@
 # Execution Plan
 
-## Session grouping
+## Four-session runtime cadence
 
-M00 is the project foundation. Runtime work is grouped into four five-milestone sessions:
+M00 is the project foundation. The 20 runtime milestones are grouped into four five-milestone sessions:
 
 ```text
-Session 1  M01-M05
-Session 2  M06-M10
+Session 1  M01-M05   ✅ complete
+Session 2  M06-M10   next
 Session 3  M11-M15
 Session 4  M16-M20
 ```
 
-## Session 1 — establish the kernel and first-order vocabulary
+# Session 1 — M01-M05 ✅
 
-- **M01 Functional Subscription ✅** — closure-owned lifecycle and teardown ownership.
-- **M02 Functional Sink ✅** — notification state composed with lifecycle.
-- **M03 Functional Observable ✅** — lazy execution function and standalone subscription.
-- **M04 First Functional Pipeline ✅** — `of`, `map`, `filter`, functional operator plumbing, end-to-end pipeline.
-- **M05 Projection & Querying — next** — tap/scan/reduce/pairwise/distinct family and generalized terminal/finalization operator policies.
+- **M01 Functional Subscription ✅** — closure-owned lifecycle, teardown ownership, error aggregation.
+- **M02 Functional Sink ✅** — notification state, safe consumer boundary, lifecycle composition.
+- **M03 Functional Observable ✅** — lazy execution function, standalone subscribe, source teardown attachment.
+- **M04 First Functional Pipeline ✅** — `of`, `map`, `filter`, functional operator Subscriber, synchronous cancellation.
+- **M05 Projection & Querying ✅** — `tap`, shared accumulation policy, `pairwise`, distinctness family, generalized operator terminal/finalize policies.
 
-## What M04 established for M05
-
-M05 can build every first-order operator as a policy over the M01-M04 kernel:
+## Session 1 kernel
 
 ```text
-source Observable
-      │
-      ▼
-operator child Subscriber
-      │
-      ▼
-destination Subscriber
+Observable<T> = Subscriber<T> -> TeardownLogic
+
+Operator<A,B> = Observable<A> -> Observable<B>
 ```
 
-Permanent first-order rules:
+The concrete responsibilities are:
 
-1. operator construction is lazy;
-2. mutable operator state is allocated per subscription;
-3. the operator child is attached to downstream ownership before source execution;
-4. operator callback errors enter the downstream error channel;
-5. downstream cancellation closes operator children synchronously;
-6. synchronous sources observe upstream closure before their next emission;
-7. terminal notifications tear down the chain;
-8. cancellation never synthesizes completion.
+```text
+Subscription   lifetime / teardown ownership
+Subscriber     notification participation
+Observable     lazy execution
+Operator       lazy Observable transformation
+```
 
-## M05 acceptance target
+First-order operator variation is expressed primarily through per-subscription closure state and configured notification handlers.
 
-M05 expands the first-order vocabulary while reusing the same execution topology:
+# Session 2 — M06-M10
 
-- `tap`
-- `scan`
-- `reduce`
-- `pairwise`
-- `distinct`
-- `distinctUntilChanged`
-- `distinctUntilKeyChanged`
+## M06 — Selection & Gating
 
-The functional OperatorSubscriber helper may be generalized to support custom error, complete, and finalize policies, but the lifecycle/Observable model must not be redesigned.
+Implement the selection families on the established first-order kernel:
 
-M05 must differentially verify state reset per subscription, accumulator/seed behavior, completion-time emission, previous-value memory, distinct Set/key policies, callback failures, and finalization ordering where applicable.
+- positional take/skip variants;
+- value-driven takeWhile/skipWhile;
+- notifier-driven takeUntil/skipUntil;
+- first/last/single/elementAt and related termination/error semantics.
 
-## Remaining sessions
+The main concern is no longer transformation but **when participation ends or begins**.
 
-### Session 2 — M06-M10
+## M07 — Higher-Order Kernel
 
-- **M06 Selection & gating** — take/skip/first/last/single/elementAt and notifier/value variants.
-- **M07 Higher-order kernel** — inner-subscription execution machinery.
-- **M08 Flattening policies** — mergeMap/concatMap/switchMap/exhaustMap and relatives.
-- **M09 Multi-source coordination** — merge/concat/combineLatest/zip/race/forkJoin/withLatestFrom.
-- **M10 Functional Subjects** — Subject/BehaviorSubject/ReplaySubject/AsyncSubject.
+Introduce reusable machinery for source values that create inner Observables:
 
-### Session 3 — M11-M15
+```text
+outer value
+    │
+ project
+    ▼
+inner Observable
+    │
+    ▼
+inner Subscription lifecycle
+```
+
+Track active inner identity, completion, cancellation, and outer/inner termination interaction.
+
+## M08 — Flattening Policies
+
+Express the four canonical concurrency policies over M07:
+
+```text
+mergeMap    allow overlap
+concatMap   queue while busy
+switchMap   cancel previous / keep latest
+exhaustMap  ignore new while busy
+```
+
+Also recover the corresponding `*All` and related flattening exports where appropriate.
+
+## M09 — Multi-Source Coordination
+
+Implement source coordination and joining:
+
+- merge
+- concat
+- combineLatest
+- zip
+- race
+- forkJoin
+- withLatestFrom
+
+Termination and subscription ordering are first-class test dimensions.
+
+## M10 — Functional Subjects
+
+Implement multicast participation without inheritance:
+
+```text
+Subject          multicast hub
+BehaviorSubject  hub + current value policy
+ReplaySubject    hub + replay buffer policy
+AsyncSubject     hub + last-on-complete policy
+```
+
+M10 closes Session 2 by proving that shared topology can also be expressed from functional state/policies.
+
+# Session 3 — M11-M15
 
 - **M11 Sharing topology** — connectable/connect/share/shareReplay.
 - **M12 Error & resubscription** — catchError/retry/repeat/finalize families.
-- **M13 Scheduler kernel** — queue/asap/async/animation-frame policies.
+- **M13 Scheduler kernel** — functional queue/clock/request/cancel/flush policies.
 - **M14 Temporal operators** — timer/interval/delay/debounce/audit/throttle/sample/timeout.
 - **M15 Boundary & collection** — buffer/window/groupBy families.
 
-### Session 4 — M16-M20
+# Session 4 — M16-M20
 
 - **M16 Platform sources** — events/callbacks/ajax/fetch/WebSocket.
-- **M17 Testing runtime** — virtual time/TestScheduler-equivalent capability.
+- **M17 Testing runtime** — virtual time/TestScheduler-equivalent behavior.
 - **M18 Remaining 7.8.2 surface** — close uncommon/deprecated public gaps.
-- **M19 Package parity** — strict subpath/declaration/ESM/CJS compatibility.
+- **M19 Package parity** — strict subpath/declarations/ESM/CJS compatibility.
 - **M20 Differential certification** — final behavioral/export matrix.
 
-## Milestone gates
+# Permanent milestone gates
 
-Every milestone must satisfy:
+Every milestone must pass independently:
 
 1. **Architecture** — no classes, inheritance, or disguised prototype OO.
-2. **API scope** — exports/capabilities promised by the milestone are tracked honestly.
-3. **Behavior** — differential traces match `rxjs@7.8.2`.
+2. **API scope** — promised parity exports and intentional FP extensions are tracked honestly.
+3. **Behavior** — differential traces match `rxjs@7.8.2` for every claimed semantic area.
 
-`README.md` is the canonical public milestone narrative; this document is the execution checklist.
+`README.md` remains the canonical public project-page and milestone narrative.
