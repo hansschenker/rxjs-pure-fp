@@ -62,8 +62,9 @@ M00 provides:
 - a curated immutable slice of the verified RxJS 7.8.2 ES3 build;
 - an AST architecture gate that prevents class/inheritance architecture;
 - a differential trace harness with an RxJS oracle self-test;
-- generated public-export snapshot tooling;
+- committed public-export oracle data generated from RxJS 7.8.2;
 - an export-parity reporter;
+- a committed dependency lockfile and reproducible `npm ci` workflow;
 - modern TypeScript 7 configuration;
 - ESM, CommonJS, and declaration build scaffolding;
 - distribution architecture checks;
@@ -166,7 +167,7 @@ Run the complete behavioral and export parity matrix. The target is the same obs
 
 ## Reference material
 
-`reference/rxjs-7.8.2-es3/` contains a curated M00 slice of the verified ES3/CommonJS build: Observable, Subscriber, Subscription, Subject variants, OperatorSubscriber, representative operators, and scheduler internals. It is read-only anatomy material. Later milestones may add files from the same verified artifact when they reach another subsystem.
+`reference/rxjs-7.8.2-es3/` contains an immutable M00 execution-core slice of the verified ES3/CommonJS build: `Subscription`, `Subscriber`, `Observable`, `OperatorSubscriber`, and representative `map`. It is read-only anatomy material. Later milestones may add exact files from the same verified artifact when they reach Subjects, sharing, schedulers, higher-order execution, or another subsystem.
 
 The original ES3 artifact SHA-256 is:
 
@@ -177,10 +178,12 @@ b274b8fb3d87c47b96623965abd67cf218a2bd5ec4e0ae856a0455641a5799c9
 ## Development
 
 ```bash
-npm install
-npm run oracle:exports
+npm ci
+npm run oracle:exports:check
 npm run verify
 ```
+
+Use `npm run oracle:exports` only when intentionally regenerating the committed RxJS 7.8.2 export baseline.
 
 Individual gates are available as `typecheck`, `lint`, `architecture:check`, `test`, `test:differential`, `build`, `parity:exports`, and `dist:check`.
 
