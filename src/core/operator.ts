@@ -1,5 +1,5 @@
 import { createObservable, subscribe, type Observable } from './observable.ts';
-import { createSubscriber, type Observer, type Subscriber } from './sink.ts';
+import { createSubscriberWithHooks, type Observer, type Subscriber } from './sink.ts';
 import type { TeardownLogic } from './subscription.ts';
 
 export type OperatorFunction<T, R> = (source: Observable<T>) => Observable<R>;
@@ -20,7 +20,8 @@ export const createOperatorSubscriber = <T, R>(
   destination: Subscriber<R>,
   onNext?: (value: T) => void,
   onComplete?: () => void,
-  onError?: (error: unknown) => void
+  onError?: (error: unknown) => void,
+  onFinalize?: () => void
 ): Subscriber<T> => {
   const observer: Observer<T> = {
     next(value) {
@@ -58,26 +59,27 @@ export const createOperatorSubscriber = <T, R>(
     },
   };
 
-  const operatorSubscriber = createSubscriber(observer);
+  // RxJS can close a child during its super-constructor if the destination is
+  // already closed, before OperatorSubscriber's finalize fields are installed.
+  // `armed` preserves that edge case without constructors.
+  let armed = false;
+  const operatorSubscriber = createSubscriberWithHooks(observer, {
+    onFinalize: () => {
+      if (armed) {
+        onFinalize?.();
+      }
+    },
+  });
   destination.add(operatorSubscriber);
+  armed = true;
   return operatorSubscriber;
 };
 
-/**
- * Starts source execution with an already-owned operator Subscriber and, when
- * supplied, registers finalization after the source teardown has been attached.
- *
- * If the source terminates synchronously, adding to the already-closed child
- * executes finalization immediately — still after source teardown.
- */
+/** Starts source execution with an already-owned operator Subscriber. */
 export const subscribeOperator = <T>(
   source: Observable<T>,
-  operatorSubscriber: Subscriber<T>,
-  onFinalize?: () => void
+  operatorSubscriber: Subscriber<T>
 ): Subscriber<T> => {
   subscribe(operatorSubscriber)(source);
-  if (onFinalize) {
-    operatorSubscriber.add(onFinalize);
-  }
   return operatorSubscriber;
 };
