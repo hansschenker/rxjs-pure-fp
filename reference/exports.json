@@ -1,0 +1,9 @@
+{
+  "package": "rxjs",
+  "version": "7.8.2",
+  "generatedBy": "tools/snapshot-rxjs-exports.mjs",
+  "exports": {
+    ".": []
+  },
+  "m00Bootstrap": "CI replaces this bootstrap manifest with the generated oracle snapshot before M00 is finalized."
+}

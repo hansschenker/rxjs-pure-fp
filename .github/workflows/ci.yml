@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - 'feat/**'
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install pinned development dependencies
+        run: npm install --ignore-scripts
+      - name: Capture RxJS 7.8.2 export oracle
+        run: npm run oracle:exports
+      - name: Verify M00
+        run: npm run verify
+      - name: Upload generated M00 baselines
+        uses: actions/upload-artifact@v4
+        with:
+          name: m00-generated-baselines
+          path: |
+            package-lock.json
+            reference/exports.json
+          if-no-files-found: error
