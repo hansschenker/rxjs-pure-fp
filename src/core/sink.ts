@@ -1,7 +1,7 @@
-import { config } from './config.js';
-import { captureError } from './error-context.js';
-import { COMPLETE_NOTIFICATION, errorNotification, nextNotification, type ObservableNotification } from './notification.js';
-import { createSubscription, isSubscription, type Subscription } from './subscription.js';
+import { config } from './config.ts';
+import { captureError } from './error-context.ts';
+import { COMPLETE_NOTIFICATION, errorNotification, nextNotification, type ObservableNotification } from './notification.ts';
+import { createSubscription, isSubscription, type Subscription } from './subscription.ts';
 
 export type Observer<T> = {
   next(value: T): void;

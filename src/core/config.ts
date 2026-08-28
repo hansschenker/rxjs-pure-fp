@@ -1,5 +1,5 @@
-import type { ObservableNotification } from './notification.js';
-import type { Subscriber } from './sink.js';
+import type { ObservableNotification } from './notification.ts';
+import type { Subscriber } from './sink.ts';
 
 export type GlobalConfig = {
   onUnhandledError: ((error: unknown) => void) | null;
