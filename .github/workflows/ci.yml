@@ -23,5 +23,5 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Verify committed RxJS 7.8.2 export oracle
         run: npm run oracle:exports:check
-      - name: Verify M00
+      - name: Verify current milestone
         run: npm run verify
