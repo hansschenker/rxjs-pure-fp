@@ -49,6 +49,22 @@ test('M01 remove removes one matching finalizer occurrence at a time', () => {
   assert.equal(calls, 1);
 });
 
+test('M01 removing a child detaches ownership without cancelling the child', () => {
+  const events = [];
+  const parent = createSubscription(() => events.push('parent'));
+  const child = createSubscription(() => events.push('child'));
+
+  parent.add(child);
+  parent.remove(child);
+  parent.unsubscribe();
+
+  assert.equal(child.closed, false);
+  assert.deepEqual(events, ['parent']);
+
+  child.unsubscribe();
+  assert.deepEqual(events, ['parent', 'child']);
+});
+
 test('M01 child subscriptions detach from all parents when they unsubscribe', () => {
   const events = [];
   const left = createSubscription();
@@ -65,6 +81,23 @@ test('M01 child subscriptions detach from all parents when they unsubscribe', ()
   assert.equal(left.closed, true);
   assert.equal(right.closed, true);
   assert.equal(child.closed, true);
+});
+
+test('M01 supports structural unsubscribable finalizers', () => {
+  let calls = 0;
+  const finalizer = {
+    unsubscribe() {
+      calls += 1;
+    },
+  };
+  const subscription = createSubscription();
+
+  subscription.add(finalizer);
+  subscription.unsubscribe();
+  assert.equal(calls, 1);
+
+  subscription.add(finalizer);
+  assert.equal(calls, 2);
 });
 
 test('M01 aggregates and flattens teardown errors without skipping later finalizers', () => {
