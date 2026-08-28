@@ -17,6 +17,9 @@ export {
   UnsubscriptionError,
   createSubscription,
 } from './core/subscription.ts';
+export { of } from './creation/of.ts';
+export { filter } from './operators/filter.ts';
+export { map } from './operators/map.ts';
 
 export type { GlobalConfig } from './core/config.ts';
 export type {
@@ -24,6 +27,10 @@ export type {
   ObservableInitializer,
   Subscribe,
 } from './core/observable.ts';
+export type {
+  MonoTypeOperatorFunction,
+  OperatorFunction,
+} from './core/operator.ts';
 export type { UnaryFunction } from './core/pipe.ts';
 export type {
   Observer,

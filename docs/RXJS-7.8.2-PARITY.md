@@ -1,22 +1,22 @@
 # RxJS 7.8.2 Parity
 
-## Current milestone: M03 — Functional Observable
+## Current milestone: M04 — First Functional RxJS Pipeline
 
-M03 establishes the first complete execution skeleton: lazy Observable execution functions compose with the M02 Subscriber notification machine and the M01 Subscription lifecycle.
+M04 proves the complete functional path from source creation through operator composition to subscription.
 
-| Dimension | M03 status |
+| Dimension | M04 status |
 | --- | --- |
 | Behavioral oracle | pinned `rxjs@7.8.2` |
-| Architecture gate | passes across 8 TypeScript runtime files |
-| Unit tests | 24 / 24 |
-| Differential tests | 25 / 25 total |
-| New M03 differential traces | 8 |
-| RxJS root exports implemented | 6 / 175 = 3.4% |
+| Architecture gate | passes across 12 TypeScript source files |
+| Unit tests | 32 / 32 |
+| Differential tests | 33 / 33 total |
+| New M04 differential traces | 8 |
+| RxJS root exports implemented | 9 / 175 = 5.1% |
 | Functional root extensions | 5 |
 | Unexpected root exports | 0 |
-| Distribution architecture | passes across 16 emitted JavaScript files |
+| Distribution architecture | passes across 24 emitted JavaScript files |
 
-## Root parity exports implemented through M03
+## Root parity exports through M04
 
 - `Subscription`
 - `UnsubscriptionError`
@@ -24,14 +24,13 @@ M03 establishes the first complete execution skeleton: lazy Observable execution
 - `config`
 - `Observable`
 - `pipe`
+- `of`
+- `map`
+- `filter`
 
-An export name being present is not by itself a claim that every historical method-shaped capability attached to the corresponding RxJS class has already been reimplemented. Semantic certification remains milestone-scoped.
+## Functional extensions
 
-For example, M03 certifies the Observable execution/subscription boundary, not yet every RxJS `Observable.prototype` convenience such as `forEach` or interop methods. Those capabilities are recovered functionally when their feature milestones arrive.
-
-## Functional root extensions
-
-The deliberate FP-only root additions are tracked separately in `reference/functional-exports.json`:
+Tracked separately and never counted toward RxJS parity:
 
 - `createSubscription`
 - `createSubscriber`
@@ -39,53 +38,70 @@ The deliberate FP-only root additions are tracked separately in `reference/funct
 - `subscribe`
 - `pipeValue`
 
-These extensions never count toward RxJS export parity.
+## M04 certified scope
 
-## M03 certified semantic scope
+### `of`
 
-The functional Observable matches RxJS 7.8.2 for the tested execution boundary:
+- synchronous emission order;
+- each argument emitted as one value without flattening;
+- completion after ordinary emission;
+- synchronous source loop observes cancellation via `subscriber.closed`.
 
-1. construction is lazy;
-2. independent subscriptions execute independently;
-3. synchronous `next` / terminal ordering is preserved;
-4. a teardown returned after synchronous completion executes immediately;
-5. source exceptions are routed through the Subscriber error channel;
-6. manual unsubscription runs source teardown without synthesizing completion;
-7. an existing Subscriber is reused rather than wrapped;
-8. a returned child Subscription becomes owned teardown work;
-9. initializer `this` refers to the Observable representation;
-10. root `pipe` preserves RxJS unary-function composition behavior.
+The deprecated scheduler overload is not yet certified and belongs to scheduler work.
 
-The eight M03 differential tests group those properties into reusable traces and all match `rxjs@7.8.2`.
+### `map`
+
+- one projected value per source value;
+- projection receives per-subscription index beginning at zero;
+- projection failure enters the downstream error channel;
+- failure tears down the synchronous upstream chain;
+- deprecated `thisArg` behavior is preserved.
+
+### `filter`
+
+- predicate receives per-subscription index beginning at zero;
+- only truthy predicate results are forwarded;
+- predicate failure enters the downstream error channel;
+- deprecated `thisArg` behavior is preserved.
+
+### operator lifecycle
+
+M04 certifies that an operator's upstream child Subscriber is owned by the downstream Subscriber before source execution begins. This provides correct synchronous cancellation propagation through an operator chain.
+
+## M04 differential traces
+
+1. first `of → map → filter → subscribe` pipeline;
+2. map/filter index reset on each subscription;
+3. map projection error;
+4. filter predicate error;
+5. synchronous downstream cancellation through the chain;
+6. `of` value shape/non-flattening;
+7. deprecated map/filter `thisArg` behavior;
+8. raw downstream `next` failure through `map`.
+
+All eight match RxJS 7.8.2.
 
 ## Previously certified scope
 
-### M01 — Subscription
+- **M01:** seven Subscription lifecycle traces.
+- **M02:** nine Subscriber/safe-consumer traces.
+- **M03:** eight Observable execution-boundary traces.
+- **M00:** differential harness oracle self-test.
 
-Seven differential lifecycle traces certify idempotent unsubscribe, parent/child ownership, explicit removal, structural finalizers, add-after-close behavior, and nested teardown-error aggregation.
+## Interpretation of the 9/175 score
 
-### M02 — Subscriber / safe consumer
+Export count measures package-surface progress, not architectural or semantic effort. M04 adds only three root names, but establishes reusable operator plumbing that later operator milestones can share.
 
-Nine differential traces certify active/stopped notification behavior, direct unsubscribe, Subscriber destination chaining, raw destination failures, safe user-handler error reporting, missing error-handler reporting, and stopped-notification reporting.
+An export being present also does not imply every deprecated overload or related scheduler/platform capability is already certified. The parity document records milestone-specific semantic scope explicitly.
 
-## Intentional architectural deviations
+## Intentional deviations
 
-The functional kernel does not promise OO invocation compatibility:
+The kernel does not support class construction/subclassing as its canonical API. `Observable`, `Subscriber`, and `Subscription` are functional parity names rather than constructible classes.
 
-- `new Subscription()` is not canonical and is intentionally unsupported;
-- `new Subscriber()` is intentionally unsupported;
-- `new Observable()` is intentionally unsupported;
-- prototype methods and subclassing are intentionally absent.
+## Final parity policy
 
-The target is feature capability and observable semantics through a functional API.
+M19-M20 make full package/export parity strict. Until then, every milestone must keep:
 
-## Export-parity policy
-
-`reference/exports.json` is generated from the pinned RxJS 7.8.2 package. `npm run parity:exports` reports:
-
-- implemented RxJS root exports;
-- missing RxJS root exports;
-- declared functional extensions;
-- accidental unexpected exports.
-
-Full strict export/package parity becomes an M19-M20 gate. Behavioral parity is enforced incrementally from the first runtime milestone onward.
+- zero accidental unexpected root exports;
+- explicit FP extensions separated from parity exports;
+- differential evidence for every semantic claim made by that milestone.
