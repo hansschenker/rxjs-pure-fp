@@ -4,17 +4,17 @@
 
 - **M00 Foundation ✅** — oracle, reference material, architecture gate, differential harness, build and parity tooling.
 - **M01 Functional Subscription ✅** — closure-owned teardown state, idempotent cancellation, nested ownership, explicit removal, structural unsubscribables, aggregated teardown errors.
-- **M02 Functional Sink — next** — `next/error/complete`, stopped state, guarded forwarding, finalization.
-- **M03 Functional Observable** — lazy execution description, standalone subscription, standalone pipeline composition.
+- **M02 Functional Sink ✅** — Subscriber notification protocol, stopped state, destination chaining, safe consumer adaptation, asynchronous error/stopped reporting.
+- **M03 Functional Observable — next** — lazy execution description, standalone subscription, execution ownership, source teardown integration.
 - **M04 First Vertical Slice** — `of` plus representative `map`/`filter` pipeline end-to-end with differential evidence.
 
 M00-M04 are deliberately reviewed one at a time because they determine the exact functional kernel.
 
-### What M01 established for M02
+## What M01 established
 
-M02 can now treat cancellation as an independent functional service rather than inheriting lifecycle behavior from a Subscriber class. A sink can own or compose a `Subscription` record without becoming that record through inheritance.
+M01 made cancellation an independent functional service rather than something Subscriber must inherit.
 
-The established lifecycle contract includes:
+The lifecycle contract includes:
 
 - `closed` becomes true before teardown runs;
 - unsubscription is idempotent;
@@ -25,7 +25,44 @@ The established lifecycle contract includes:
 - all finalizers are attempted even when earlier teardown throws;
 - nested unsubscription errors flatten into one aggregate error.
 
-These invariants become assumptions for M02's sink/stopped-state design.
+## What M02 established
+
+M02 composes notification behavior onto the same M01 lifecycle record.
+
+The sink/subscriber contract now includes:
+
+- `next(value)` forwards only while the Subscriber is active;
+- `error(error)` is terminal, sets stop-state before delivery, and finalizes in `finally`;
+- `complete()` is terminal, sets stop-state before delivery, and finalizes in `finally`;
+- direct unsubscription stops notifications without synthesizing completion;
+- `closed` and `isStopped` are separate state concepts;
+- a Subscriber destination owns the child Subscriber lifecycle through M01 `add` semantics;
+- raw destination handler failures preserve RxJS synchronous behavior;
+- safe user-callback failures are reported asynchronously;
+- missing safe error handlers report the source error asynchronously;
+- notifications to stopped Subscribers are not delivered and may be asynchronously observed through `config.onStoppedNotification`;
+- deprecated next-context behavior can be represented with context + closure + `Reflect.apply`, without prototype binding.
+
+M02 also established a reusable multi-file TypeScript strategy: source modules may use explicit `.ts` relative specifiers, with `rewriteRelativeImportExtensions` converting them to emitted JavaScript paths during builds.
+
+## M03 — Functional Observable
+
+M03 can now focus on the actual Observable responsibility instead of re-solving lifecycle or consumer safety.
+
+The milestone must determine the exact representation of a lazy Observable execution description and prove these invariants:
+
+1. Constructing an Observable does not execute source work.
+2. Each ordinary subscription creates independent execution state.
+3. `subscribe` creates or accepts the M02 functional Subscriber boundary.
+4. Source teardown is added to the M01 lifecycle correctly.
+5. Synchronous source emissions preserve RxJS 7.8.2 ordering.
+6. Synchronous source errors route through the Subscriber protocol.
+7. Completion finalizes exactly once.
+8. Explicit cancellation stops source work without manufacturing completion.
+9. A source that returns another subscription/unsubscribable participates in lifecycle ownership correctly.
+10. No `Observable` class, `lift`, prototype method, or inheritance hierarchy is required by the kernel.
+
+M03 should initially stay narrow. It should establish the Observable execution boundary before M04 adds creation and transformation operators.
 
 ## M05-M20: recover the RxJS 7.8.2 machine
 
@@ -53,3 +90,5 @@ Every milestone must satisfy three independent gates:
 1. **Architecture** — no classes, inheritance, or disguised prototype OO.
 2. **API scope** — the exports promised by that milestone exist and are tracked.
 3. **Behavior** — differential traces match `rxjs@7.8.2` for the milestone scenarios.
+
+Export presence alone is not semantic certification. Each behavioral claim must be backed by milestone-scoped differential evidence.
