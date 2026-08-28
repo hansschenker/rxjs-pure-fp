@@ -1,0 +1,30 @@
+{
+  "name": "rxjs-pure-fp",
+  "version": "0.0.0",
+  "private": true,
+  "description": "A pure functional reimplementation experiment targeting RxJS 7.8.2 behavior without class or inheritance architecture.",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "architecture:check": "node tools/check-no-classes.mjs",
+    "build": "npm run clean && tsc -p tsconfig.esm.json && tsc -p tsconfig.cjs.json && tsc -p tsconfig.types.json && node tools/prepare-dist.mjs",
+    "clean": "node tools/clean.mjs",
+    "dist:check": "node tools/check-dist.mjs",
+    "lint": "node tools/lint-repo.mjs",
+    "oracle:exports": "node tools/snapshot-rxjs-exports.mjs",
+    "oracle:exports:check": "node tools/check-oracle-exports.mjs",
+    "parity:exports": "node tools/compare-exports.mjs",
+    "test": "node --test test/unit/*.test.mjs",
+    "test:differential": "node --test test/differential/*.test.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "verify": "npm run typecheck && npm run lint && npm run architecture:check && npm run test && npm run test:differential && npm run build && npm run parity:exports && npm run dist:check"
+  },
+  "devDependencies": {
+    "@typescript/typescript6": "6.0.2",
+    "rxjs": "7.8.2",
+    "typescript": "7.0.2"
+  },
+  "license": "Apache-2.0"
+}
