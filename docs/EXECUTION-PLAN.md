@@ -1,74 +1,85 @@
 # Execution Plan
 
-## M00-M04: prove the kernel
+## Session grouping
 
-- **M00 Foundation ✅** — oracle, reference material, architecture gate, differential harness, build and parity tooling.
-- **M01 Functional Subscription ✅** — closure-owned teardown state, idempotent cancellation, nested ownership, explicit removal, structural unsubscribables, aggregated teardown errors.
-- **M02 Functional Sink ✅** — Subscriber notification protocol, stopped state, destination chaining, safe consumer adaptation, asynchronous error/stopped reporting.
-- **M03 Functional Observable — next** — lazy execution description, standalone subscription, execution ownership, source teardown integration.
-- **M04 First Vertical Slice** — `of` plus representative `map`/`filter` pipeline end-to-end with differential evidence.
+M00 is the project foundation. The 20 runtime milestones are grouped into four five-milestone working sessions:
 
-M00-M04 are deliberately reviewed one at a time because they determine the exact functional kernel.
+```text
+Session 1  M01-M05
+Session 2  M06-M10
+Session 3  M11-M15
+Session 4  M16-M20
+```
 
-## What M01 established
+## M00-M05: establish and prove the kernel
 
-M01 made cancellation an independent functional service rather than something Subscriber must inherit.
+- **M00 Foundation ✅** — oracle, ES3 reference boundary, architecture gate, differential harness, build and parity tooling.
+- **M01 Functional Subscription ✅** — closure-owned teardown state, idempotent cancellation, ownership/removal, structural finalizers, aggregated teardown errors.
+- **M02 Functional Sink ✅** — `next/error/complete`, stopped state, raw versus safe consumer boundary, lifecycle chaining, config-driven reports.
+- **M03 Functional Observable ✅** — lazy execution function, standalone subscribe, independent execution, source teardown attachment, RxJS-compatible `pipe`.
+- **M04 First Functional Pipeline — next** — `of`, `map`, `filter`, data-first composition, end-to-end differential proof.
+- **M05 Projection & Querying** — expand to tap/scan/reduce/pairwise/distinct variants and certify family behavior.
 
-The lifecycle contract includes:
+## What M03 established for M04
 
-- `closed` becomes true before teardown runs;
-- unsubscription is idempotent;
-- initial teardown precedes added finalizers;
-- children can belong to multiple parents and self-detach;
-- removing a child removes ownership without cancelling it;
-- finalizers added after closure execute immediately;
-- all finalizers are attempted even when earlier teardown throws;
-- nested unsubscription errors flatten into one aggregate error.
+M04 does not need another execution mechanism. It can define creation and operators entirely in terms of the existing kernel:
 
-## What M02 established
+```text
+creation operator
+      │
+      ▼
+Observable execution function
+      │
+      ▼
+operator(source)
+      │
+      ▼
+new Observable execution function
+      │
+      ▼
+subscribe(observer)
+```
 
-M02 composes notification behavior onto the same M01 lifecycle record.
+The permanent M01-M03 assumptions are:
 
-The sink/subscriber contract now includes:
+- Observable construction is inert;
+- each ordinary subscription executes the source independently;
+- Subscriber is the notification boundary;
+- Subscription owns all teardown;
+- synchronous termination can occur before returned teardown is attached;
+- adding teardown to a closed Subscriber executes it immediately;
+- cancellation is not completion;
+- source exceptions enter the Subscriber error channel;
+- an existing Subscriber retains identity.
 
-- `next(value)` forwards only while the Subscriber is active;
-- `error(error)` is terminal, sets stop-state before delivery, and finalizes in `finally`;
-- `complete()` is terminal, sets stop-state before delivery, and finalizes in `finally`;
-- direct unsubscription stops notifications without synthesizing completion;
-- `closed` and `isStopped` are separate state concepts;
-- a Subscriber destination owns the child Subscriber lifecycle through M01 `add` semantics;
-- raw destination handler failures preserve RxJS synchronous behavior;
-- safe user-callback failures are reported asynchronously;
-- missing safe error handlers report the source error asynchronously;
-- notifications to stopped Subscribers are not delivered and may be asynchronously observed through `config.onStoppedNotification`;
-- deprecated next-context behavior can be represented with context + closure + `Reflect.apply`, without prototype binding.
+## M04 acceptance target
 
-M02 also established a reusable multi-file TypeScript strategy: source modules may use explicit `.ts` relative specifiers, with `rewriteRelativeImportExtensions` converting them to emitted JavaScript paths during builds.
+The first complete functional pipeline should be expressible as:
 
-## M03 — Functional Observable
+```ts
+const result$ = pipeValue(
+  of(1, 2, 3),
+  map(value => value * 10),
+  filter(value => value > 10)
+);
 
-M03 can now focus on the actual Observable responsibility instead of re-solving lifecycle or consumer safety.
+subscribe({ next: console.log })(result$);
+```
 
-The milestone must determine the exact representation of a lazy Observable execution description and prove these invariants:
+Expected values:
 
-1. Constructing an Observable does not execute source work.
-2. Each ordinary subscription creates independent execution state.
-3. `subscribe` creates or accepts the M02 functional Subscriber boundary.
-4. Source teardown is added to the M01 lifecycle correctly.
-5. Synchronous source emissions preserve RxJS 7.8.2 ordering.
-6. Synchronous source errors route through the Subscriber protocol.
-7. Completion finalizes exactly once.
-8. Explicit cancellation stops source work without manufacturing completion.
-9. A source that returns another subscription/unsubscribable participates in lifecycle ownership correctly.
-10. No `Observable` class, `lift`, prototype method, or inheritance hierarchy is required by the kernel.
+```text
+20
+30
+```
 
-M03 should initially stay narrow. It should establish the Observable execution boundary before M04 adds creation and transformation operators.
+The implementation must prove end-to-end parity against RxJS 7.8.2 for value ordering, projection/predicate errors, completion, and cancellation through an operator chain.
 
-## M05-M20: recover the RxJS 7.8.2 machine
+## M05-M20: recover the complete RxJS 7.8.2 machine
 
 - **M05 Projection & querying** — map/filter/tap/scan/reduce/pairwise/distinct family.
-- **M06 Selection & gating** — take/skip/first/last/single/elementAt and notifier variants.
-- **M07 Higher-order kernel** — inner-subscription execution machinery.
+- **M06 Selection & gating** — take/skip/first/last/single/elementAt and notifier/value variants.
+- **M07 Higher-order kernel** — shared inner-subscription execution machinery.
 - **M08 Flattening policies** — mergeMap/concatMap/switchMap/exhaustMap and flattening relatives.
 - **M09 Multi-source coordination** — merge/concat/combineLatest/zip/race/forkJoin/withLatestFrom.
 - **M10 Functional Subjects** — Subject, BehaviorSubject, ReplaySubject, AsyncSubject.
@@ -79,16 +90,16 @@ M03 should initially stay narrow. It should establish the Observable execution b
 - **M15 Boundary & collection** — buffer/window/groupBy families.
 - **M16 Platform sources** — events/callbacks/ajax/fetch/WebSocket.
 - **M17 Testing runtime** — virtual time and TestScheduler-equivalent capability.
-- **M18 Remaining 7.8.2 surface** — uncommon and deprecated-but-public functionality needed for feature equality.
+- **M18 Remaining 7.8.2 surface** — uncommon and deprecated-but-public feature gaps.
 - **M19 Package parity** — subpath exports, declarations, ESM/CJS package surfaces.
-- **M20 Differential certification** — final export and behavioral parity matrix.
+- **M20 Differential certification** — final behavioral and export parity matrix.
 
 ## Milestone gates
 
-Every milestone must satisfy three independent gates:
+Every milestone satisfies three independent gates:
 
 1. **Architecture** — no classes, inheritance, or disguised prototype OO.
-2. **API scope** — the exports promised by that milestone exist and are tracked.
+2. **API scope** — promised exports/capabilities exist and parity reporting remains honest.
 3. **Behavior** — differential traces match `rxjs@7.8.2` for the milestone scenarios.
 
-Export presence alone is not semantic certification. Each behavioral claim must be backed by milestone-scoped differential evidence.
+The README is the canonical public milestone narrative; this document is the execution checklist.

@@ -6,13 +6,13 @@ A modern functional reimplementation experiment targeting **RxJS 7.8.2 behavior 
 
 ## Why this project exists
 
-RxJS 7.8.2 is written in TypeScript and exposes a small runtime object model around `Observable`, `Subscriber`, `Subscription`, Subjects, and schedulers. A separate experiment downlevel-compiled RxJS 7.8.2 to ES3/CommonJS and demonstrated that modern JavaScript `class` syntax is not fundamental to the runtime: the emitted library becomes constructor functions and prototype methods.
+RxJS 7.8.2 exposes a small runtime object model around `Observable`, `Subscriber`, `Subscription`, Subjects, schedulers, and operators. A previous experiment downlevel-compiled RxJS 7.8.2 to ES3/CommonJS. That experiment removed modern `class` syntax, but revealed that the generated runtime was still constructor/prototype OO.
 
 `rxjs-pure-fp` asks the stronger question:
 
-> Can the complete RxJS 7.8.2 reactive machine be re-expressed with functions, closures, structural records, and policy composition while retaining its observable semantics?
+> Can the complete RxJS 7.8.2 reactive machine be reconstructed from functions, closures, structural records, and policy composition while preserving observable behavior?
 
-This is not an attempt to make a smaller "Rx-like" library. The long-term target is RxJS 7.8.2 feature equality, measured continuously against the real package.
+This is not intended to be a smaller "Rx-like" library. The long-term target is RxJS 7.8.2 feature equality, continuously measured against the real `rxjs@7.8.2` package.
 
 ## Three sources of truth
 
@@ -30,84 +30,231 @@ Runtime Map          Functional Reimplementation
 ```
 
 - **RxJS 7.8.2** defines correct behavior and the public feature set.
-- **The ES3 downlevel reference** exposes runtime responsibilities without TypeScript class syntax, but it remains constructor/prototype architecture and is never copied as the target design.
+- **The ES3 downlevel reference** exposes runtime responsibilities without TypeScript class syntax, but is never copied as the target architecture.
 - **`rxjs-pure-fp`** reconstructs those responsibilities functionally.
 
-## Target mental model
+## Architectural rules
+
+Runtime source under `src/` must not introduce project-defined classes, inheritance, `super`, prototype mutation, constructor/prototype OO disguised as functions, or a global registry holding per-execution state.
+
+The project prefers:
+
+- functions over classes;
+- composition over inheritance;
+- closures over instance fields;
+- structural types over nominal hierarchies;
+- policies over subclass variation;
+- standalone functions over prototype methods;
+- state allocated at the narrowest lifetime that needs it.
+
+An AST-based architecture gate enforces these rules. The current source gate is intentionally stronger than required at runtime: even type-level `extends` is absent from `src/`; type composition uses intersections.
+
+## Runtime mental model
 
 ```text
-Observable     = lazy execution description
-Operator       = Observable<A> -> Observable<B>
-Sink           = next/error/complete protocol
+Observable     = lazy execution function
+Subscriber     = notification participation + lifecycle
 Subscription   = teardown lifecycle closure
+Operator       = Observable<A> -> Observable<B>
 Subject        = multicast closure
 Scheduler      = execution-time policy
 ```
 
-The governing state rule is simple: **state belongs to the narrowest lifetime that requires it**. Normal execution state is created per subscription. Shared state exists only where sharing is explicit.
+After M03 the first three layers are no longer merely a plan. They are working code with differential evidence:
 
-## Architecture rules
-
-Implementation code under `src/` must not use project-defined classes, inheritance, `super`, prototype mutation, or constructor/prototype OO disguised as functions. An AST-based architecture check enforces this rule.
-
-Functions, closures, structural objects, discriminated unions, higher-order functions, and localized mutable execution state are expected. Platform constructors such as `Error`, `Map`, `Set`, or `AbortController` remain available where appropriate.
-
-The source gate currently enforces the stronger rule that even type-level `extends` is absent from runtime source. Type composition uses structural intersections.
+```text
+Observable execution function
+          │
+          ▼
+Subscriber notification record
+          │
+          ▼
+Subscription lifecycle closure
+```
 
 ---
 
-# Current status — M02 Functional Sink
+# Current status — M03 Functional Observable
 
-M02 reconstructs the second major runtime responsibility: **the RxJS Subscriber / sink notification machine**.
+M03 reconstructs the RxJS execution boundary without an `Observable` class.
 
-RxJS 7.8.2 expresses the relationship through inheritance:
+## M03 representation
 
-```text
-Subscription
-     ▲
-     │
- Subscriber
-     ▲
-     │
-SafeSubscriber
+The core type is deliberately small:
+
+```ts
+type Observable<T> =
+  (subscriber: Subscriber<T>) => TeardownLogic;
 ```
 
-`rxjs-pure-fp` separates those responsibilities and composes them:
+`createObservable(initializer)` returns a lazy execution function. Creating the function does not execute the initializer.
 
 ```text
-createSubscription()
+createObservable(initializer)
         │
-        │ lifecycle ownership
-        ▼
-structural Subscription record
-        │
-        │ enrich same record
-        ▼
-createSubscriber(destination)
-        │
-        ├── closure: isStopped
-        ├── closure: destination
-        ├── next(value)
-        ├── error(error)
-        ├── complete()
-        └── unsubscribe()
-
-partial observer / callbacks
-        │
-        ▼
-safe consumer adapter
-        │
-        ▼
-createSubscriber(...)
+        └── returns lazy execution function
+                    │
+                    │ subscribe(...)(source)
+                    ▼
+              initializer runs
 ```
 
-The important point is that **Subscriber is not a second lifecycle object**. M02 takes the structural record produced by M01 and enriches that same record with the Observer protocol. This preserves the identity-sensitive parent/child teardown behavior already established by M01.
+Each subscription invokes the execution function again and therefore receives independent ordinary execution state.
 
-The enrichment uses own properties on the record. It does not modify a prototype and does not create an inheritance chain.
+## Standalone subscription
 
-## M01 foundation — lifecycle
+The canonical FP subscription boundary is data-last and curried:
 
-M01 established the functional Subscription machine:
+```ts
+const subscription = subscribe({
+  next: value => console.log(value),
+  error: error => console.error(error),
+  complete: () => console.log('complete')
+})(source$);
+```
+
+`subscribe` performs four jobs:
+
+```text
+observer/callbacks
+      │
+      ▼
+M02 safe Subscriber
+      │
+      ▼
+execute source
+      │
+      ▼
+returned TeardownLogic
+      │
+      ▼
+M01 subscriber.add(teardown)
+```
+
+Source execution is wrapped in the same error-context behavior used by RxJS 7.8.2. A synchronous exception thrown by a source enters the Subscriber error channel rather than escaping the normal subscription path.
+
+## The synchronous completion / returned teardown case
+
+One of the most important M03 tests is this ordering:
+
+```text
+source starts
+   │
+   ├── next(...)
+   ├── complete()
+   │      └── Subscriber is now closed
+   │
+   └── source returns teardown
+                │
+                ▼
+        subscriber.add(teardown)
+                │
+                ▼
+      add-to-closed runs teardown now
+```
+
+This requires no Observable-specific special case. M03 inherits the correct behavior from the M01 lifecycle contract. That is strong evidence that the functional layers are composing correctly.
+
+## Source cancellation
+
+A non-terminal source can return teardown work:
+
+```ts
+const source$ = createObservable(subscriber => {
+  const handle = startWork(value => subscriber.next(value));
+  return () => stopWork(handle);
+});
+```
+
+Manual unsubscription runs that teardown without creating a synthetic `complete()` notification.
+
+## Existing Subscriber identity
+
+Standalone `subscribe` accepts an already-created functional Subscriber. It uses the same record rather than wrapping it in another lifecycle object.
+
+This preserves identity-sensitive ownership semantics introduced by M01 and M02.
+
+## Constructor initializer `this`
+
+RxJS constructor initializers are invoked with the Observable instance as `this`. Even though `rxjs-pure-fp` has no Observable instance, M03 preserves the useful semantic relationship:
+
+```text
+initializer this === functional Observable execution function
+```
+
+`createObservable` uses `Reflect.apply` to provide the returned Observable function as the initializer context. No prototype mechanism is required.
+
+## Observable parity name
+
+RxJS 7.8.2 root-exports `Observable`, so M03 provides that parity name as a normal functional factory:
+
+```ts
+const source$ = Observable(subscriber => {
+  subscriber.next(1);
+  subscriber.complete();
+});
+```
+
+The deprecated `Observable.create(...)` capability is retained as a function property.
+
+`new Observable()` intentionally fails. Constructibility is an OO invocation detail, not part of the pure functional kernel contract.
+
+## `pipe` and `pipeValue`
+
+RxJS already root-exports a standalone `pipe` function, so M03 preserves its RxJS 7.8.2 meaning: compose unary functions and return one unary function.
+
+```ts
+const transform = pipe(
+  plusOne,
+  double
+);
+
+transform(3); // 8
+```
+
+The project also wants the direct Callbag-style/data-first form. That is exposed explicitly as a functional extension rather than silently changing RxJS's exported `pipe` semantics:
+
+```ts
+pipeValue(
+  source$,
+  operatorA,
+  operatorB
+);
+```
+
+This distinction keeps export parity honest.
+
+## M03 verification status
+
+Latest verified M03 evidence:
+
+- **24 / 24 unit tests** pass across M00-M03;
+- **8 new M03 differential traces** match `rxjs@7.8.2`;
+- **25 / 25 total differential tests** pass;
+- architecture gate passes for **8 TypeScript runtime source files**;
+- ESM, CommonJS, and declaration builds pass;
+- distribution architecture check passes for **16 emitted JavaScript files**;
+- RxJS root export parity is **6 / 175 = 3.4%**;
+- implemented root parity names now include `Observable` and `pipe` in addition to the M01-M02 exports;
+- deliberate functional root extensions: `createSubscription`, `createSubscriber`, `createObservable`, `subscribe`, `pipeValue`;
+- unexpected root exports: **0**.
+
+The eight M03 differential scenarios cover:
+
+1. synchronous completion followed by returned teardown;
+2. source exception routing;
+3. independent executions per subscription;
+4. direct cancellation without completion;
+5. existing Subscriber identity reuse;
+6. returned child Subscription ownership;
+7. initializer `this` identity;
+8. RxJS-compatible standalone `pipe` composition.
+
+---
+
+# Kernel established by M01-M03
+
+## M01 — lifecycle
 
 ```text
 createSubscription(initialTeardown?)
@@ -123,246 +270,45 @@ createSubscription(initialTeardown?)
               └── unsubscribe()
 ```
 
-Its tested contract includes idempotent cancellation, parent/child teardown ownership, explicit removal, structural unsubscribables, add-after-close behavior, ordered finalization, and aggregated teardown errors.
+M01 established idempotent cancellation, nested ownership, explicit removal, structural unsubscribables, add-after-close behavior, ordered teardown, and aggregated unsubscription errors.
 
-M02 composes this lifecycle rather than inheriting it.
-
-## M02 notification state machine
-
-A raw functional Subscriber has two independent but coordinated state dimensions:
+## M02 — notification participation
 
 ```text
-Lifecycle state                Notification state
----------------                ------------------
-closed                         isStopped
-finalizers                     destination
-parentage                      next/error/complete
-```
-
-The states meet at terminal notifications and direct cancellation.
-
-### `next(value)`
-
-```text
-next(value)
-    │
-    ├── isStopped = false ──► destination.next(value)
-    │
-    └── isStopped = true  ──► optional stopped-notification report
-```
-
-A raw destination is deliberately raw. If its `next` handler throws, that error propagates synchronously and the Subscriber remains open, matching RxJS 7.8.2 `Subscriber` behavior.
-
-### `error(error)`
-
-```text
-error(error)
-    │
-    ├── already stopped
-    │       └── optional stopped-notification report
-    │
-    └── active
-            ├── isStopped = true
-            ├── destination.error(error)
-            └── unsubscribe() in finally
-```
-
-Even if the raw destination's `error` handler throws, teardown still runs because finalization occurs in `finally`.
-
-### `complete()`
-
-```text
-complete()
-    │
-    ├── already stopped
-    │       └── optional stopped-notification report
-    │
-    └── active
-            ├── isStopped = true
-            ├── destination.complete()
-            └── unsubscribe() in finally
-```
-
-Completion is terminal and triggers teardown. Direct `unsubscribe()` also sets the Subscriber to stopped, but cancellation does **not** synthesize a completion notification.
-
-## `closed` and `isStopped` are different ideas
-
-M02 preserves an important RxJS distinction:
-
-```text
-closed     = lifecycle has been torn down
-isStopped  = notifications are no longer accepted
-```
-
-For normal terminal execution they move together, but they express different responsibilities. That separation becomes important when operators and Observable execution are introduced.
-
-## Destination chaining
-
-If a Subscriber is used as another Subscriber's destination, M02 preserves RxJS's ownership topology:
-
-```text
-parent Subscriber
-       │
-       │ owns child lifecycle
-       ▼
-child Subscriber
-```
-
-Unsubscribing the destination parent tears down the child. This works because M02 composes the already-tested M01 Subscription record rather than introducing a parallel lifecycle representation.
-
-## Raw Subscriber versus safe consumer
-
-RxJS makes an important distinction between `Subscriber` and `SafeSubscriber` / `ConsumerObserver`. M02 keeps the distinction, but expresses it as function composition.
-
-### Raw boundary
-
-```text
-source/operator code
-      │
-      ▼
+M01 Subscription record
+        │
+        │ enrich same record
+        ▼
 createSubscriber(destination)
-      │
-      ▼
-raw destination functions
+        │
+        ├── closure: isStopped
+        ├── closure: destination
+        ├── next(value)
+        ├── error(error)
+        ├── complete()
+        └── unsubscribe()
 ```
 
-Errors thrown by a raw destination are not automatically converted into asynchronous unhandled errors.
+M02 preserved the distinction between raw Subscriber forwarding and safe user-consumer handling. It also established asynchronous `onUnhandledError` and stopped-notification behavior.
 
-### Safe user-consumer boundary
+## M03 — lazy execution
 
 ```text
-partial observer / callbacks
+createObservable(initializer)
           │
           ▼
-consumer adapter
-  try/catch each handler
+lazy execution function
+          │
+      subscribe(...)
           │
           ▼
-createSubscriber(...)
+M02 Subscriber
+          │
+          ▼
+M01 teardown ownership
 ```
 
-`Subscriber.create(...)` retains the deprecated RxJS 7.8.2 helper shape and delegates to this safe adapter. The public parity name `Subscriber` remains a normal function, not a constructible class.
-
-```ts
-const subscriber = Subscriber.create(
-  value => console.log(value),
-  error => console.error(error),
-  () => console.log('complete')
-);
-```
-
-`new Subscriber()` intentionally fails. OO invocation compatibility is not part of the functional kernel contract.
-
-The canonical FP constructor is:
-
-```ts
-const subscriber = createSubscriber({
-  next: value => console.log(value),
-  error: error => console.error(error),
-  complete: () => console.log('complete')
-});
-```
-
-## User-handler errors
-
-The safe consumer adapter mirrors RxJS's boundary behavior:
-
-- a thrown user `next` handler is reported asynchronously;
-- a thrown user `error` handler is reported asynchronously;
-- a thrown user `complete` handler is reported asynchronously;
-- an error notification without a supplied error handler is reported asynchronously;
-- the Subscriber's lifecycle is not confused with that out-of-band error reporting.
-
-M02 implements the relevant `config.onUnhandledError` hook and differentially verifies the asynchronous behavior.
-
-## Stopped notifications
-
-Notifications sent after completion, error, or explicit unsubscription are not delivered to the destination. By default they are ignored.
-
-If `config.onStoppedNotification` is configured, M02 reports them asynchronously, matching RxJS 7.8.2:
-
-```text
-stopped Subscriber
-      │
-      ├── next(value)
-      ├── error(error)
-      └── complete()
-              │
-              ▼
-     onStoppedNotification
-       on another job
-```
-
-The callback receives the notification shape and the stopped Subscriber record.
-
-## Deprecated next context
-
-RxJS 7.8.2 still contains the deprecated `config.useDeprecatedNextContext` compatibility path. M02 preserves the behavior without copying RxJS's `Function.prototype.bind` technique.
-
-Instead, the functional implementation creates a context value and uses a closure plus `Reflect.apply`:
-
-```text
-handler + context
-       │
-       ▼
-closure(args)
-       │
-       ▼
-Reflect.apply(handler, context, args)
-```
-
-This was an architectural discovery during M02: the no-prototype gate rejected the first direct translation of RxJS's binding trick, forcing a cleaner functional representation.
-
-## Config scope introduced by M02
-
-`config` is now a root parity export because it participates directly in Subscriber semantics.
-
-M02 behaviorally exercises:
-
-- `config.onUnhandledError`;
-- `config.onStoppedNotification`;
-- `config.useDeprecatedNextContext` at the unit level.
-
-The object also carries the RxJS 7.8.2 fields `Promise` and `useDeprecatedSynchronousErrorHandling`. Their complete observable-level behavior is **not** claimed by M02; later milestones will certify those paths when the corresponding execution APIs exist.
-
-## Multi-file TypeScript source strategy
-
-M02 is the first milestone where the runtime spans several TypeScript modules. Source tests execute TypeScript directly under Node 22, while distributable builds emit JavaScript.
-
-The project therefore enables TypeScript's relative-import extension rewriting:
-
-```json
-"rewriteRelativeImportExtensions": true
-```
-
-Runtime source modules can use explicit `.ts` relative specifiers during direct source execution, and TypeScript rewrites them to emitted JavaScript paths for ESM/CommonJS builds. This is now shared infrastructure for later milestones.
-
-## M02 verification status
-
-Latest verified M02 evidence:
-
-- **16 / 16 unit tests** pass across M00-M02;
-- **9 M02 differential traces** match `rxjs@7.8.2`;
-- **17 / 17 total differential tests** pass including M00 and M01 evidence;
-- architecture gate passes for **6 TypeScript runtime source files**;
-- ESM, CommonJS, and declaration builds pass;
-- distribution architecture check passes for **12 emitted JavaScript files**;
-- RxJS root export parity is **4 / 175 = 2.3%**;
-- implemented RxJS root parity names are `Subscription`, `UnsubscriptionError`, `Subscriber`, and `config`;
-- deliberate functional root extensions are `createSubscription` and `createSubscriber`;
-- unexpected root exports: **0**.
-
-The nine M02 differential scenarios cover:
-
-1. ordinary next/complete/stopped notification behavior;
-2. direct unsubscribe behavior;
-3. Subscriber destination/lifecycle chaining;
-4. raw `next` handler failure semantics;
-5. raw `error` handler failure plus guaranteed finalization;
-6. safe callback adaptation;
-7. asynchronous safe-handler error reporting;
-8. asynchronous reporting when no error handler exists;
-9. asynchronous stopped-notification reporting.
+This is the first complete functional runtime skeleton. M04 now needs to add values and transformations rather than redesigning execution mechanics.
 
 ---
 
@@ -370,31 +316,31 @@ The nine M02 differential scenarios cover:
 
 ### M00 — Foundation ✅
 
-Established the RxJS 7.8.2 behavioral oracle, immutable ES3 reference boundary, architecture enforcement, differential testing, export measurement, reproducible build system, and canonical project documentation.
+Established the RxJS 7.8.2 behavioral oracle, immutable ES3 reference boundary, architecture enforcement, differential testing, export measurement, reproducible build system, and canonical documentation.
 
 ### M01 — Functional Subscription ✅
 
-Replaced `Subscription` class architecture with closure-owned lifecycle state and a structural record. Implemented teardown registration, idempotent unsubscribe, nested ownership, explicit removal, structural unsubscribables, immediate teardown after closure, and aggregated teardown-error semantics. Seven differential lifecycle traces match RxJS 7.8.2.
+Replaced `Subscription` class architecture with closure-owned lifecycle state and a structural record. Seven differential lifecycle traces match RxJS 7.8.2.
 
 ### M02 — Functional Sink ✅
 
-Replaced `Subscription ← Subscriber ← SafeSubscriber` inheritance with composition of the M01 lifecycle record, lexical stop/destination state, structural notification functions, and a separate safe consumer adapter. Nine new differential traces match RxJS 7.8.2, including asynchronous user-error and stopped-notification behavior.
+Replaced `Subscription ← Subscriber ← SafeSubscriber` inheritance with composition of lifecycle, lexical notification state, structural functions, and a safe consumer adapter. Nine new differential traces match RxJS 7.8.2.
 
-### M03 — Functional Observable — next
+### M03 — Functional Observable ✅
 
-Introduce the lazy Observable execution description and standalone `subscribe`. Pipeline construction must remain inert; each subscription creates independent execution state. M03 will compose the M01 lifecycle and M02 sink into the first actual Observable execution boundary without `Observable` class, `lift`, or prototype methods.
+Replaced the Observable class execution boundary with a lazy execution function plus standalone `subscribe`. Eight new differential traces match RxJS 7.8.2. The M01-M03 functional kernel is now operational.
 
-### M04 — First Functional RxJS Pipeline
+### M04 — First Functional RxJS Pipeline — next
 
-Prove the complete path from creation to execution with `of`, representative `map` and `filter`, standalone `pipe`, and subscription. The milestone must match RxJS 7.8.2 notification order and cancellation semantics end-to-end.
+Prove the complete value path with `of`, `map`, `filter`, `pipeValue`, and standalone `subscribe`. The goal is the first end-to-end RxJS pipeline implemented entirely on the functional kernel.
 
 ### M05 — Projection & Querying
 
-Recover the projection/querying family including map, filter, tap, scan, reduce, pairwise, and distinct variants while keeping business logic in user functions and reactive mechanics in operators.
+Expand the first operator slice into the projection/querying family: `map`, `filter`, `tap`, `scan`, `reduce`, `pairwise`, and distinct variants, with differential behavior tests for transformation, accumulation, selection, completion, and error paths.
 
 ### M06 — Selection & Gating
 
-Implement positional, value-driven, and notifier-driven selection: take/skip families, first/last/single/elementAt, and related completion semantics.
+Implement positional, value-driven, and notifier-driven selection: take/skip families, first/last/single/elementAt, and related termination semantics.
 
 ### M07 — Higher-Order Kernel
 
@@ -402,47 +348,47 @@ Build the shared inner-subscription machinery needed to project source values in
 
 ### M08 — Flattening Policies
 
-Express the four canonical policies over the higher-order kernel: `mergeMap` allows overlap, `concatMap` queues, `switchMap` keeps only the latest, and `exhaustMap` ignores new work while busy. Implement corresponding flattening relatives.
+Express `mergeMap`, `concatMap`, `switchMap`, and `exhaustMap` as policies over the higher-order kernel, together with their flattening relatives.
 
 ### M09 — Multi-Source Coordination
 
-Implement merge, concat, combineLatest, zip, race, forkJoin, withLatestFrom, and their termination/coordination rules.
+Implement merge, concat, combineLatest, zip, race, forkJoin, withLatestFrom, and their coordination/termination rules.
 
 ### M10 — Functional Subjects
 
-Implement Subject as a multicast closure, then compose BehaviorSubject, ReplaySubject, and AsyncSubject from the multicast mechanism plus explicit state/replay/completion policies rather than inheritance.
+Implement Subject as a multicast closure, then compose BehaviorSubject, ReplaySubject, and AsyncSubject through explicit state/replay/completion policies rather than inheritance.
 
 ### M11 — Sharing Topology
 
-Implement connectable, connect, share, shareReplay, and multicast lifecycle semantics. Sharing is treated as an explicit change from independent execution to shared execution topology.
+Implement connectable, connect, share, shareReplay, and multicast lifecycle semantics.
 
 ### M12 — Error & Resubscription
 
-Implement catchError, retry, retryWhen, repeat, repeatWhen, finalize, and related resubscription lifecycle behavior.
+Implement catchError, retry, retryWhen, repeat, repeatWhen, finalize, and related resubscription behavior.
 
 ### M13 — Scheduler Kernel
 
-Replace scheduler/action inheritance with a scheduling kernel configured by clock, queue, request/cancel, and flush policies. Recover queue, asap, async, and animation-frame behavior.
+Replace scheduler/action inheritance with a functional clock, queue, request/cancel, and flush policy kernel.
 
 ### M14 — Temporal Operators
 
-Implement timer, interval, delay, debounce, audit, throttle, sample, timeout, and related temporal behaviors on top of sources and scheduler policies.
+Implement timer, interval, delay, debounce, audit, throttle, sample, timeout, and related time-dependent behavior.
 
 ### M15 — Boundary & Collection
 
-Implement buffer, window, groupBy, and related boundary/collection families including overlapping, contiguous, and gapped execution patterns where RxJS 7.8.2 supports them.
+Implement buffer, window, groupBy, and related boundary/collection families.
 
 ### M16 — Platform Sources
 
-Implement DOM/event sources, callback adapters, ajax, fetch, and WebSocket integration while retaining cancellation and teardown semantics.
+Implement event sources, callback adapters, ajax, fetch, and WebSocket integration with cancellation semantics.
 
 ### M17 — Testing Runtime
 
-Recover virtual-time testing and TestScheduler-equivalent feature capability without importing scheduler class architecture into the functional kernel.
+Recover virtual time and TestScheduler-equivalent capability without scheduler class architecture.
 
 ### M18 — Remaining RxJS 7.8.2 Surface
 
-Close gaps for uncommon and deprecated-but-public behavior required by the declared feature-equality target.
+Close gaps for uncommon and deprecated-but-public behavior required by the feature-equality target.
 
 ### M19 — Package Parity
 
@@ -450,13 +396,26 @@ Complete public subpath exports, declarations, ESM/CommonJS surfaces, and packag
 
 ### M20 — Differential Certification
 
-Run the complete behavioral and export parity matrix. The target is the same observable behavior and feature capability with a different runtime architecture.
+Run the complete behavioral/export parity matrix and certify the target: same observable behavior, different runtime architecture.
+
+---
+
+# Four implementation sessions
+
+M00 is the foundation outside the 20 runtime milestones. The runtime plan is grouped into four five-milestone working sessions:
+
+```text
+Session 1  M01-M05   core kernel + first operator families
+Session 2  M06-M10   gating + higher-order + coordination + Subjects
+Session 3  M11-M15   sharing + recovery + scheduling + time + boundaries
+Session 4  M16-M20   platform + testing + remaining surface + certification
+```
 
 ---
 
 ## Reference material
 
-`reference/rxjs-7.8.2-es3/` contains an immutable execution-core slice of the verified ES3/CommonJS build: `Subscription`, `Subscriber`, `Observable`, `OperatorSubscriber`, and representative `map`. It is read-only anatomy material. Later milestones may add exact files from the same verified artifact when they reach Subjects, sharing, schedulers, higher-order execution, or another subsystem.
+`reference/rxjs-7.8.2-es3/` contains an immutable execution-core slice of the verified ES3/CommonJS build: `Subscription`, `Subscriber`, `Observable`, `OperatorSubscriber`, and representative `map`. It is read-only anatomy material.
 
 The original ES3 artifact SHA-256 is:
 
@@ -472,20 +431,18 @@ npm run oracle:exports:check
 npm run verify
 ```
 
-Use `npm run oracle:exports` only when intentionally regenerating the committed RxJS 7.8.2 export baseline.
-
-Individual gates are available as `typecheck`, `lint`, `architecture:check`, `test`, `test:differential`, `build`, `parity:exports`, and `dist:check`.
+`npm run verify` runs typecheck, repository lint, architecture validation, unit tests, differential tests, builds, export parity, and distribution architecture checks.
 
 ## Documentation
 
-- `docs/ARCHITECTURE.md` — realized functional kernel and state ownership.
-- `docs/SEMANTICS.md` — RxJS 7.8.2 semantic invariants that must survive reimplementation.
-- `docs/FUNCTIONAL-RUNTIME.md` — functional decomposition and policy-composition heuristics.
-- `docs/ES3-TO-FP-MAPPING.md` — how to read the ES3 runtime without copying its OO architecture.
+- `docs/ARCHITECTURE.md` — realized and target functional architecture.
+- `docs/SEMANTICS.md` — RxJS 7.8.2 invariants that must survive the rewrite.
+- `docs/FUNCTIONAL-RUNTIME.md` — functional decomposition and policy heuristics.
+- `docs/ES3-TO-FP-MAPPING.md` — how to use the ES3 runtime as anatomy rather than target architecture.
 - `docs/RXJS-7.8.2-PARITY.md` — continuously updated parity scoreboard.
 - `docs/EXECUTION-PLAN.md` — milestone order and completion gates.
-- `AGENTS.md` — mandatory implementation rules for automated coding agents and contributors.
+- `AGENTS.md` — mandatory coding-agent and contributor rules.
 
 ## License
 
-Apache-2.0. RxJS reference material retains its corresponding Apache-2.0 license notice under `reference/`.
+Apache-2.0. RxJS reference material retains its corresponding Apache-2.0 notices under `reference/`.

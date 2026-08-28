@@ -2,58 +2,60 @@
 
 ## Architectural thesis
 
-RxJS 7.8.2 defines the observable behavior. `rxjs-pure-fp` intentionally replaces its historical OO runtime architecture with functional composition.
+RxJS 7.8.2 defines observable behavior. `rxjs-pure-fp` intentionally replaces its historical OO runtime architecture with functional composition.
 
-The project is not a mechanical rewrite of `class` into constructor functions. The ES3 reference exposes runtime responsibilities; those responsibilities are then recomposed from functions, closures, structural values, and explicit policies.
+The project is not a mechanical `class`-to-function rewrite. The ES3 reference exposes runtime responsibilities; those responsibilities are then recomposed from functions, closures, structural records, and policies.
 
 ## Target runtime vocabulary
 
 | RxJS responsibility | Pure FP representation |
 | --- | --- |
-| Observable | lazy execution function / description |
-| Observer | structural sink of `next`, `error`, `complete` functions |
+| Observable | lazy execution function |
+| Observer | structural `next/error/complete` sink |
 | Subscriber | Observer protocol + stop-state + Subscription lifecycle |
 | Subscription | lifecycle closure containing teardown state |
-| SafeSubscriber / ConsumerObserver | guarded user-consumer adapter |
 | Operator | `Observable<A> -> Observable<B>` |
 | Subject | multicast closure and observer registry |
-| BehaviorSubject | multicast + remembered current value policy |
-| ReplaySubject | multicast + replay buffer policy |
-| AsyncSubject | multicast + remember-latest + complete-emission policy |
-| Scheduler | clock + queue + scheduling/flush policy |
-
-## Construction state and execution state
-
-Pipeline construction must be inert. A pipeline describes a dataflow; it does not execute it.
-
-Each ordinary subscription creates its own execution state. Closure state that belongs to one execution must be allocated when that execution starts, not while the Observable description is constructed.
-
-Shared state is exceptional and explicit. Subject and sharing operators intentionally introduce a topology in which multiple subscribers participate in one execution or multicast hub.
+| Scheduler | clock + queue + scheduling/flush policies |
 
 ## No disguised OO
 
-Removing the `class` keyword is insufficient. The following architecture is also rejected:
+Forbidden runtime architecture includes:
 
 ```text
-constructor function
-+ prototype methods
-+ prototype inheritance
+class
+constructor function + prototype methods
+prototype inheritance
+subclass polymorphism hidden behind functions
 ```
 
-The target is:
+The target form is:
 
 ```text
 closure state
-+ structural records
-+ operations over that state
++ structural operations
 + higher-order composition
 ```
 
-The source architecture gate enforces the stronger rule that even type-level `extends` is absent from `src/`; structural type composition uses intersections instead.
+The source architecture gate also rejects type-level `extends`; structural TypeScript composition uses intersections.
 
-## M01 realized kernel — Functional Subscription
+---
 
-M01 established the first concrete runtime representation:
+# Realized kernel after M03
+
+```text
+Observable execution function
+          │
+          ▼
+Subscriber notification record
+          │
+          ▼
+Subscription lifecycle closure
+```
+
+The layers have distinct responsibilities and compose directly.
+
+## M01 — Subscription
 
 ```text
 createSubscription(initialTeardown?)
@@ -62,71 +64,19 @@ createSubscription(initialTeardown?)
         ├── closure: parentage
         ├── closure: finalizers
         │
-        └── returned structural record
+        └── structural record
               ├── closed
               ├── add(teardown)
               ├── remove(teardown)
               └── unsubscribe()
 ```
 
-The returned record is not a constructor instance and has no prototype-owned behavior. `closed`, parent ownership, and finalizer storage live in the lexical environment created by `createSubscription`.
+Subscription state belongs to one lifecycle. Parent/child coordination uses private symbol-keyed hooks on returned records, never prototype state or a global registry.
 
-Parent/child subscription coordination uses module-private symbol-keyed functions on the returned structural record. These are private record-to-record coordination hooks, not public API or prototype methods. No module-global registry owns subscription state.
-
-The lifecycle transition is:
+## M02 — Subscriber / Sink
 
 ```text
-open
- │
- ├── add finalizer
- ├── add child subscription
- ├── remove finalizer/child
- │
- └── unsubscribe
-       │
-       ├── mark closed first
-       ├── detach from parents
-       ├── run initial teardown
-       ├── run all finalizers in order
-       ├── aggregate teardown errors
-       └── remain permanently closed
-```
-
-`unsubscribe()` is idempotent. Adding a finalizer after closure executes it immediately, matching RxJS 7.8.2.
-
-## M02 realized kernel — Functional Sink / Subscriber
-
-RxJS models Subscriber through inheritance:
-
-```text
-Subscription
-     ▲
-     │
- Subscriber
-     ▲
-     │
-SafeSubscriber
-```
-
-M02 decomposes this into independent responsibilities:
-
-```text
-M01 lifecycle record
-      +
-notification stop-state
-      +
-destination forwarding
-      =
-functional Subscriber
-```
-
-More concretely:
-
-```text
-createSubscription()
-        │
-        ▼
-structural lifecycle record
+M01 Subscription record
         │
         │ enrich same record
         ▼
@@ -140,160 +90,129 @@ createSubscriber(destination)
         └── unsubscribe()
 ```
 
-### Why the same structural record is enriched
+The same record owns both notification participation and lifecycle. There is no second wrapper object and no `Subscriber extends Subscription` relationship.
 
-M01's parent/child semantics are identity-sensitive: a child subscription removes the exact structural record from its parents when it tears down. Wrapping that lifecycle in a second object would introduce a second identity and complicate those semantics.
+The safe consumer boundary remains separate: callback/partial-observer failures are caught and reported according to RxJS 7.8.2 config semantics, while raw Subscriber destinations retain raw forwarding behavior.
 
-M02 therefore enriches the same M01 record with own notification properties. This is localized record mutation, not prototype mutation. The record's lifecycle identity stays stable while its responsibility set grows through composition.
+## M03 — Observable
 
-### Two state machines, one execution participant
+The concrete M03 representation is:
 
-A Subscriber coordinates two distinct state spaces:
+```ts
+type Observable<T> =
+  (subscriber: Subscriber<T>) => TeardownLogic;
+```
+
+`createObservable(initializer)` returns a lazy function. Construction does not allocate ordinary execution state and does not call the initializer.
+
+Standalone subscription composes the existing layers:
 
 ```text
-Subscription lifecycle       Notification protocol
-----------------------       ---------------------
-closed                       isStopped
-parentage                    destination
-finalizers                   next/error/complete
+subscribe(observer)(source)
+        │
+        ├── create/reuse M02 Subscriber
+        ├── execute M03 source
+        └── add returned teardown to M01 lifecycle
 ```
 
-`closed` means lifecycle teardown has occurred. `isStopped` means notifications are no longer accepted. They often transition together but they are not synonyms.
-
-### Terminal notifications
-
-`error` and `complete` first stop notifications, then call the destination, then finalize in `finally`:
+This composition explains the important synchronous-completion case naturally:
 
 ```text
-active
-  │
-  ├── error(err)
-  │      ├── isStopped = true
-  │      ├── destination.error(err)
-  │      └── unsubscribe() in finally
-  │
-  └── complete()
-         ├── isStopped = true
-         ├── destination.complete()
-         └── unsubscribe() in finally
+source completes synchronously
+        │
+Subscriber closes
+        │
+source returns teardown
+        │
+subscriber.add(teardown)
+        │
+M01 add-to-closed executes teardown immediately
 ```
 
-This guarantees teardown even if a raw destination's terminal handler throws.
+No Observable-specific workaround is required.
 
-Direct `unsubscribe()` stops notifications and tears down lifecycle without manufacturing a completion notification.
+## Observable initializer context
 
-### Destination chaining
-
-If the destination is itself a functional Subscriber/Subscription, M02 uses the already-existing M01 ownership relation:
+RxJS calls a constructor initializer with the Observable instance as `this`. M03 preserves the relationship without creating an instance:
 
 ```text
-destination Subscriber
-          │
-          │ add(child)
-          ▼
- child Subscriber
+initializer this === returned Observable execution function
 ```
 
-Unsubscribing the destination cascades to the child, matching RxJS Subscriber chaining.
+This is implemented with `Reflect.apply`.
 
-## Safe user-consumer boundary
+## Composition API
 
-Raw Subscriber forwarding and safe user-callback invocation are separate responsibilities.
+RxJS root `pipe` keeps its RxJS 7.8.2 semantics: unary-function composition returning one unary function.
+
+The project's direct data-first form is a separate functional extension:
+
+```ts
+pipeValue(value, fn1, fn2, ...)
+```
+
+Separating the names prevents an architectural convenience from being mislabeled as RxJS export parity.
+
+---
+
+# State ownership rule
+
+**State belongs to the narrowest lifetime that requires it.**
+
+- pipeline construction state is inert;
+- ordinary source execution state is created per subscription;
+- Subscriber stop-state belongs to one Subscriber;
+- Subscription teardown state belongs to one lifecycle;
+- shared state will be introduced only by explicit sharing topologies such as Subject/connectable/share.
+
+## Construction versus execution
 
 ```text
-partial observer / callbacks
-          │
-          ▼
-createConsumerObserver
-  ├── catch next handler errors
-  ├── catch error handler errors
-  ├── catch complete handler errors
-  └── handle missing error handler
-          │
-          ▼
-createSubscriber(...)
+construct Observable / compose operators
+              │
+              │ no source work
+              ▼
+        execution description
+              │
+          subscribe
+              ▼
+       per-subscription state
 ```
 
-This avoids recreating `SafeSubscriber extends Subscriber`.
+This distinction is a permanent semantic invariant.
 
-Safe handler errors are reported out of band through `config.onUnhandledError` or the runtime's uncaught-error mechanism, matching RxJS 7.8.2.
+---
 
-Notifications sent to a stopped Subscriber are not forwarded. If `config.onStoppedNotification` is configured, they are reported asynchronously.
+# Kernel direction after M03
 
-## Deprecated context path without prototype binding
-
-RxJS 7.8.2 uses a captured `Function.prototype.bind` for the deprecated next-context compatibility path. The architecture gate correctly rejects copying that mechanism.
-
-M02 instead uses:
-
-```text
-handler + context
-       │
-       ▼
-closure(...args)
-       │
-       ▼
-Reflect.apply(handler, context, args)
-```
-
-This preserves the compatibility behavior while avoiding prototype mechanics.
-
-## Config as execution policy
-
-M02 introduces the root `config` parity export because Subscriber semantics depend on it. The fields are configuration data, not a class hierarchy.
-
-M02 actively uses and tests the relevant parts:
-
-- `onUnhandledError` — asynchronous safe-consumer error reporting;
-- `onStoppedNotification` — asynchronous observation of ignored notifications;
-- `useDeprecatedNextContext` — compatibility context path.
-
-`Promise` and the complete deprecated synchronous-error-handling path remain present for RxJS shape compatibility but are not fully behaviorally certified until later execution APIs exist.
-
-## Multi-file source execution
-
-M02 introduced multiple runtime TypeScript modules. Tests execute `.ts` source directly under Node 22, while builds emit JavaScript.
-
-The shared compiler configuration therefore uses:
-
-```json
-"rewriteRelativeImportExtensions": true
-```
-
-Runtime source can use explicit `.ts` relative specifiers, and TypeScript rewrites them to JavaScript specifiers in emitted builds. This infrastructure applies to all later milestones.
-
-## Realized kernel after M02
-
-The kernel now has two implemented pieces and one planned piece:
+The first functional kernel is now operational:
 
 ```ts
 type Subscription = {
   readonly closed: boolean;
   add(teardown: TeardownLogic): void;
-  remove(teardown: Finalizer): void;
+  remove(teardown: Exclude<TeardownLogic, void>): void;
   unsubscribe(): void;
 };
 
-type Observer<T> = {
+type Subscriber<T> = Subscription & {
+  readonly isStopped: boolean;
   next(value: T): void;
   error(error: unknown): void;
   complete(): void;
 };
 
-type Subscriber<T> = Subscription & Observer<T> & {
-  readonly isStopped: boolean;
-};
+type Observable<T> =
+  (subscriber: Subscriber<T>) => TeardownLogic;
 
-// M03 will determine the exact representation.
-type Observable<T> = /* lazy execution description */ unknown;
+type OperatorFunction<A, B> =
+  (source: Observable<A>) => Observable<B>;
 ```
 
-M01 proved the lifecycle representation. M02 proved the sink/subscriber representation. M03 can now focus on the relationship between a lazy Observable execution description and this functional Subscriber.
+M04-M05 should extend this kernel with sources and operators rather than redesigning its lifecycle or notification model.
 
 ## Compatibility policy
 
-Behavioral parity is required. Feature/export parity is required by the final milestones. OO invocation parity is not required.
+Behavioral parity is required. Feature/export parity is required by the final milestones. OO invocation parity is intentionally not required.
 
-`Subscription`, `UnsubscriptionError`, and `Subscriber` exist as RxJS parity root names but are ordinary functions rather than constructible classes. `createSubscription` and `createSubscriber` are the canonical functional extensions.
-
-A future compatibility facade may expose additional method-shaped ergonomics, but it must be implemented on top of the functional kernel rather than shaping the kernel itself.
+Parity names such as `Observable`, `Subscriber`, and `Subscription` are ordinary functions in the functional runtime; `new`-based construction is not part of the kernel.
