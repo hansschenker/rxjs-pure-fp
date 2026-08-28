@@ -4,21 +4,21 @@ const addParentSymbol = Symbol('rxjs-pure-fp.subscription.addParent');
 const removeParentSymbol = Symbol('rxjs-pure-fp.subscription.removeParent');
 const unsubscriptionErrorMarker = Symbol('rxjs-pure-fp.unsubscription-error');
 
-export interface Unsubscribable {
+export type Unsubscribable = {
   unsubscribe(): void;
-}
+};
 
-export interface Subscription extends Unsubscribable {
+export type Subscription = Unsubscribable & {
   readonly closed: boolean;
   add(teardown: TeardownLogic): void;
   remove(teardown: Exclude<TeardownLogic, void>): void;
-}
+};
 
 export type TeardownLogic = Subscription | Unsubscribable | (() => void) | void;
 
-export interface UnsubscriptionError extends Error {
+export type UnsubscriptionError = Error & {
   readonly errors: unknown[];
-}
+};
 
 type Finalizer = Exclude<TeardownLogic, void>;
 
