@@ -1,6 +1,12 @@
-/**
- * M00 intentionally exports no runtime API.
- *
- * The first runtime primitive is introduced by M01 (Functional Subscription).
- */
-export {};
+export {
+  Subscription,
+  UnsubscriptionError,
+  createSubscription,
+} from './core/subscription.js';
+
+export type {
+  Subscription as SubscriptionLike,
+  TeardownLogic,
+  Unsubscribable,
+  UnsubscriptionError as UnsubscriptionErrorLike,
+} from './core/subscription.js';

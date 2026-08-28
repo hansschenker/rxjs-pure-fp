@@ -47,11 +47,65 @@ closure state
 + higher-order composition
 ```
 
+The source architecture gate currently enforces the stronger rule that even type-level `extends` is absent from `src/`; structural type composition uses intersections instead.
+
+## M01 realized kernel — Functional Subscription
+
+M01 establishes the first concrete runtime representation:
+
+```text
+createSubscription(initialTeardown?)
+        │
+        ├── closure: closed
+        ├── closure: parentage
+        ├── closure: finalizers
+        │
+        └── returned structural record
+              ├── closed
+              ├── add(teardown)
+              ├── remove(teardown)
+              └── unsubscribe()
+```
+
+The returned record is not a constructor instance and has no prototype-owned behavior. `closed`, parent ownership, and finalizer storage live in the lexical environment created by `createSubscription`.
+
+Parent/child subscription coordination needs a small amount of private cross-record communication. M01 implements this with module-private symbol-keyed functions on the returned structural record. These symbols are not public API, are not prototype methods, and do not require a module-global registry of subscription state. Each subscription still owns its state in its own closure.
+
+The lifecycle state transition is:
+
+```text
+open
+ │
+ ├── add finalizer
+ ├── add child subscription
+ ├── remove finalizer/child
+ │
+ └── unsubscribe
+       │
+       ├── mark closed first
+       ├── detach from parents
+       ├── run initial teardown
+       ├── run all finalizers in order
+       ├── aggregate teardown errors
+       └── remain permanently closed
+```
+
+`unsubscribe()` is idempotent. Adding a finalizer after closure executes that finalizer immediately, matching RxJS 7.8.2.
+
+`Subscription` and `UnsubscriptionError` are retained as root parity names, but they are arrow-function factories rather than constructible classes. `createSubscription` is the canonical functional API.
+
 ## Kernel direction
 
-The planned conceptual kernel is:
+With M01 established, the conceptual kernel is now:
 
 ```ts
+type Subscription = {
+  readonly closed: boolean;
+  add(teardown: TeardownLogic): void;
+  remove(teardown: Finalizer): void;
+  unsubscribe(): void;
+};
+
 type Teardown = () => void;
 
 type Sink<T> = {
@@ -66,7 +120,7 @@ type OperatorFunction<A, B> =
   (source: Observable<A>) => Observable<B>;
 ```
 
-These are directional design types, not an M00 API commitment. M01-M04 will determine the exact representation by implementing and differentially testing lifecycle semantics.
+Only the Subscription part is committed runtime API at M01. M02-M04 will determine the exact Sink and Observable representations through implementation and differential testing.
 
 ## Compatibility policy
 
