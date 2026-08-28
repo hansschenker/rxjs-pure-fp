@@ -18,8 +18,15 @@ export {
   createSubscription,
 } from './core/subscription.ts';
 export { of } from './creation/of.ts';
+export { distinct } from './operators/distinct.ts';
+export { distinctUntilChanged } from './operators/distinct-until-changed.ts';
+export { distinctUntilKeyChanged } from './operators/distinct-until-key-changed.ts';
 export { filter } from './operators/filter.ts';
 export { map } from './operators/map.ts';
+export { pairwise } from './operators/pairwise.ts';
+export { reduce } from './operators/reduce.ts';
+export { scan } from './operators/scan.ts';
+export { tap } from './operators/tap.ts';
 
 export type { GlobalConfig } from './core/config.ts';
 export type {
@@ -44,3 +51,4 @@ export type {
   Unsubscribable,
   UnsubscriptionError as UnsubscriptionErrorLike,
 } from './core/subscription.ts';
+export type { TapObserver } from './operators/tap.ts';
