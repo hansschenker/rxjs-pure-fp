@@ -52,46 +52,124 @@ Implementation code under `src/` must not use project-defined classes, inheritan
 
 Functions, closures, structural objects, discriminated unions, higher-order functions, and localized mutable execution state are expected. Platform constructors such as `Error`, `Map`, `Set`, or `AbortController` remain available where appropriate.
 
-## Current status — M00 Foundation
+## Current status — M01 Functional Subscription
 
-M00 deliberately implements **no RxJS runtime primitive yet**. It establishes the measuring equipment before the experiment starts changing the machine.
+M01 implements the first real RxJS runtime responsibility: **the Subscription lifecycle**.
 
-M00 provides:
-
-- `rxjs@7.8.2` pinned as the development-only behavioral oracle;
-- a curated immutable slice of the verified RxJS 7.8.2 ES3 build;
-- an AST architecture gate that prevents class/inheritance architecture;
-- a differential trace harness with an RxJS oracle self-test;
-- committed public-export oracle data generated from RxJS 7.8.2;
-- an export-parity reporter;
-- a committed dependency lockfile and reproducible `npm ci` workflow;
-- modern TypeScript 7 configuration;
-- ESM, CommonJS, and declaration build scaffolding;
-- distribution architecture checks;
-- CI verification;
-- canonical architecture, semantics, and execution-plan documents.
-
-M00 therefore gives later milestones three independent gates:
+Instead of translating the RxJS `Subscription` class into another constructor/prototype shape, M01 decomposes its responsibilities and rebuilds them with lexical state and functions:
 
 ```text
-Architecture  → is the implementation genuinely functional?
-API scope     → did the milestone expose what it promised?
-Behavior      → does its execution trace match RxJS 7.8.2?
+createSubscription(initialTeardown?)
+        │
+        ├── closure: closed
+        ├── closure: parentage
+        ├── closure: finalizers
+        │
+        └── structural record
+              ├── closed
+              ├── add(teardown)
+              ├── remove(teardown)
+              └── unsubscribe()
 ```
+
+Nothing in this runtime primitive is a project-defined class or constructor instance. There is no prototype-owned behavior and no global registry holding subscription state.
+
+### What happens during unsubscribe
+
+```text
+open subscription
+      │
+      ▼
+unsubscribe()
+      │
+      ├── closed = true first
+      ├── detach from every parent
+      ├── run initial teardown
+      ├── run registered finalizers in order
+      ├── continue even if finalizers throw
+      ├── flatten nested unsubscription errors
+      └── remain permanently closed
+```
+
+The first call performs the lifecycle transition. Later calls are no-ops, matching RxJS 7.8.2 idempotence.
+
+### Parent/child ownership
+
+When one functional subscription is added to another, the parent owns the child's teardown. A child can belong to multiple parents. If the child unsubscribes first, it removes itself from every parent. If a parent explicitly removes the child, ownership is removed without cancelling the child.
+
+Cross-record parent bookkeeping uses module-private symbol-keyed functions. They are internal closure-coordination hooks, not public methods or prototype machinery.
+
+### Finalizers
+
+M01 supports the same important finalizer forms as RxJS 7.8.2:
+
+- teardown functions;
+- child subscriptions;
+- structural objects with `unsubscribe()`;
+- duplicate function finalizers;
+- immediate finalization when added after the subscription is already closed.
+
+`remove()` removes one matching finalizer occurrence at a time, matching RxJS behavior for duplicate function/object finalizers.
+
+### Teardown errors
+
+All finalizers are attempted even if an earlier teardown throws. Errors are collected and raised as one `UnsubscriptionError`. If a child teardown already produced a functional `UnsubscriptionError`, its inner errors are flattened into the parent aggregate, matching the RxJS 7.8.2 lifecycle trace and message shape.
+
+### Functional API and RxJS parity names
+
+The canonical FP entry point is:
+
+```ts
+const subscription = createSubscription(() => {
+  // initial teardown
+});
+
+subscription.add(() => {
+  // additional finalizer
+});
+
+subscription.unsubscribe();
+```
+
+RxJS 7.8.2 publicly exports `Subscription` and `UnsubscriptionError`, so M01 also exposes those names. In `rxjs-pure-fp` they are **ordinary arrow-function factories**, not constructible classes:
+
+```ts
+const subscription = Subscription();
+const error = UnsubscriptionError([new Error('boom')]);
+```
+
+`new Subscription()` and `new UnsubscriptionError()` intentionally fail. OO invocation compatibility is not part of the kernel contract.
+
+`createSubscription` is recorded in `reference/functional-exports.json` as a deliberate FP-only root extension so the parity tooling can distinguish intentional functional API from accidental exports.
+
+### M01 verification status
+
+Current evidence after M01:
+
+- **11 unit tests** pass across M00/M01;
+- **7 M01 differential lifecycle traces** match `rxjs@7.8.2`;
+- architecture gate passes for all TypeScript runtime source;
+- ESM, CommonJS, and declaration builds pass;
+- distribution class/prototype architecture checks pass;
+- RxJS root export parity is **2 / 175 = 1.1%** (`Subscription`, `UnsubscriptionError`);
+- one deliberate functional root extension exists: `createSubscription`;
+- unexpected root exports: **0**.
+
+The seven differential M01 scenarios cover lifecycle ordering, duplicate finalizer removal, explicit child removal, add-after-close behavior, structural unsubscribables, multi-parent child ownership, and nested teardown-error aggregation.
 
 ## Milestone roadmap
 
 ### M00 — Foundation ✅
 
-Establish the behavioral oracle, immutable reference boundary, architecture enforcement, differential testing, export measurement, build system, and project documentation. Runtime feature parity remains intentionally at zero.
+Established the behavioral oracle, immutable reference boundary, architecture enforcement, differential testing, export measurement, reproducible build system, and canonical project documentation.
 
-### M01 — Functional Subscription
+### M01 — Functional Subscription ✅
 
-Replace `Subscription` class architecture with closure-owned lifecycle state. Implement teardown registration, idempotent unsubscribe, nested teardown ownership, finalizer behavior, and teardown-error semantics. Differential tests focus on lifecycle rather than values.
+Replaced `Subscription` class architecture with closure-owned lifecycle state and a structural record. Implemented teardown registration, idempotent unsubscribe, nested ownership, explicit removal, structural unsubscribables, immediate teardown after closure, and aggregated teardown-error semantics. Differential lifecycle traces match RxJS 7.8.2.
 
-### M02 — Functional Sink
+### M02 — Functional Sink — next
 
-Replace `Subscriber`/`SafeSubscriber` inheritance responsibilities with composed sink functions and lifecycle guards. Implement the `next/error/complete` protocol, stopped-state behavior, forwarding, user-handler errors, and finalization.
+Replace `Subscriber`/`SafeSubscriber` inheritance responsibilities with composed sink functions and lifecycle guards. Implement the `next/error/complete` protocol, stopped-state behavior, forwarding, user-handler errors, and finalization while composing the M01 Subscription lifecycle instead of inheriting from it.
 
 ### M03 — Functional Observable
 
@@ -167,7 +245,7 @@ Run the complete behavioral and export parity matrix. The target is the same obs
 
 ## Reference material
 
-`reference/rxjs-7.8.2-es3/` contains an immutable M00 execution-core slice of the verified ES3/CommonJS build: `Subscription`, `Subscriber`, `Observable`, `OperatorSubscriber`, and representative `map`. It is read-only anatomy material. Later milestones may add exact files from the same verified artifact when they reach Subjects, sharing, schedulers, higher-order execution, or another subsystem.
+`reference/rxjs-7.8.2-es3/` contains an immutable execution-core slice of the verified ES3/CommonJS build: `Subscription`, `Subscriber`, `Observable`, `OperatorSubscriber`, and representative `map`. It is read-only anatomy material. Later milestones may add exact files from the same verified artifact when they reach Subjects, sharing, schedulers, higher-order execution, or another subsystem.
 
 The original ES3 artifact SHA-256 is:
 
