@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import ts from 'typescript';
+import * as ts from 'typescript';
 
 const sourceRoot = path.resolve('src');
 const allowedConstructors = new Set([
