@@ -1,121 +1,91 @@
 # RxJS 7.8.2 Parity
 
-## Current milestone: M02 — Functional Sink
+## Current milestone: M03 — Functional Observable
 
-M02 implements the Subscriber notification responsibility by composing the M01 Subscription lifecycle with lexical stop/destination state and structural `next/error/complete` functions.
+M03 establishes the first complete execution skeleton: lazy Observable execution functions compose with the M02 Subscriber notification machine and the M01 Subscription lifecycle.
 
-| Dimension | M02 status |
+| Dimension | M03 status |
 | --- | --- |
-| Behavioral oracle pinned | `rxjs@7.8.2` |
-| Architecture gate | passes with no class, `extends`, `super`, prototype mutation, or project-defined `new` |
-| TypeScript runtime source files checked | 6 |
-| Unit tests | 16 / 16 pass across M00-M02 |
-| M01 differential lifecycle traces | 7 match RxJS 7.8.2 |
-| M02 differential sink traces | 9 match RxJS 7.8.2 |
-| Total differential tests | 17 / 17 pass including M00 oracle self-test |
-| RxJS root exports implemented | `Subscription`, `UnsubscriptionError`, `Subscriber`, `config` |
-| Functional root extensions | `createSubscription`, `createSubscriber` |
-| Root export parity | 4 / 175 = 2.3% |
+| Behavioral oracle | pinned `rxjs@7.8.2` |
+| Architecture gate | passes across 8 TypeScript runtime files |
+| Unit tests | 24 / 24 |
+| Differential tests | 25 / 25 total |
+| New M03 differential traces | 8 |
+| RxJS root exports implemented | 6 / 175 = 3.4% |
+| Functional root extensions | 5 |
 | Unexpected root exports | 0 |
-| Distribution architecture | 12 emitted JavaScript files verified class/prototype-free |
+| Distribution architecture | passes across 16 emitted JavaScript files |
 
-## M01 semantic parity retained
+## Root parity exports implemented through M03
 
-The functional Subscription continues to match RxJS 7.8.2 for:
+- `Subscription`
+- `UnsubscriptionError`
+- `Subscriber`
+- `config`
+- `Observable`
+- `pipe`
 
-- open → closed lifecycle transition;
-- idempotent `unsubscribe()`;
-- initial teardown before registered finalizers;
-- function and structural `{ unsubscribe() }` finalizers;
-- immediate execution when a finalizer is added after closure;
-- duplicate finalizers and one-at-a-time `remove()` behavior;
-- child ownership and cascading teardown;
-- explicit child removal without cancelling the child;
-- child self-detachment from multiple parents;
-- continued finalization after teardown errors;
-- nested unsubscription-error flattening;
-- compatible `UnsubscriptionError` name, message, and `errors` payload.
+An export name being present is not by itself a claim that every historical method-shaped capability attached to the corresponding RxJS class has already been reimplemented. Semantic certification remains milestone-scoped.
 
-## M02 semantic parity scope
+For example, M03 certifies the Observable execution/subscription boundary, not yet every RxJS `Observable.prototype` convenience such as `forEach` or interop methods. Those capabilities are recovered functionally when their feature milestones arrive.
 
-Nine M02 differential scenarios match RxJS 7.8.2.
+## Functional root extensions
 
-### 1. Notification and terminal ordering
+The deliberate FP-only root additions are tracked separately in `reference/functional-exports.json`:
 
-`next` notifications reach an active raw destination in order. `complete` stops the Subscriber and triggers lifecycle teardown. Later `next/error/complete` calls do not reach the destination.
+- `createSubscription`
+- `createSubscriber`
+- `createObservable`
+- `subscribe`
+- `pipeValue`
 
-### 2. Direct unsubscription
+These extensions never count toward RxJS export parity.
 
-Direct `unsubscribe()` sets the Subscriber to stopped and closes the M01 lifecycle. It does not synthesize `complete`. Later notifications are ignored by the destination.
+## M03 certified semantic scope
 
-### 3. Destination Subscriber chaining
+The functional Observable matches RxJS 7.8.2 for the tested execution boundary:
 
-If a Subscriber is the destination of another Subscriber, the destination owns the child's lifecycle. Unsubscribing the destination cascades cancellation to the child, matching RxJS constructor chaining.
+1. construction is lazy;
+2. independent subscriptions execute independently;
+3. synchronous `next` / terminal ordering is preserved;
+4. a teardown returned after synchronous completion executes immediately;
+5. source exceptions are routed through the Subscriber error channel;
+6. manual unsubscription runs source teardown without synthesizing completion;
+7. an existing Subscriber is reused rather than wrapped;
+8. a returned child Subscription becomes owned teardown work;
+9. initializer `this` refers to the Observable representation;
+10. root `pipe` preserves RxJS unary-function composition behavior.
 
-### 4. Raw `next` handler errors
+The eight M03 differential tests group those properties into reusable traces and all match `rxjs@7.8.2`.
 
-A raw destination `next` handler that throws propagates that error synchronously. The Subscriber is not automatically stopped or closed by that thrown `next` handler.
+## Previously certified scope
 
-### 5. Raw terminal-handler errors
+### M01 — Subscription
 
-A raw destination `error` handler may throw synchronously, but the Subscriber still finalizes in `finally`. The same implementation policy is used for completion finalization.
+Seven differential lifecycle traces certify idempotent unsubscribe, parent/child ownership, explicit removal, structural finalizers, add-after-close behavior, and nested teardown-error aggregation.
 
-### 6. Safe callback adaptation
+### M02 — Subscriber / safe consumer
 
-The deprecated `Subscriber.create(next, error, complete)` parity helper is retained as a functional adapter. It creates the safe user-consumer boundary without a `SafeSubscriber` subclass.
-
-### 7. Safe user-handler errors
-
-Errors thrown from safe user callbacks are reported asynchronously through `config.onUnhandledError` when configured, matching RxJS 7.8.2.
-
-### 8. Missing safe error handler
-
-An `error` notification with no supplied safe error handler closes the Subscriber immediately and reports the source error asynchronously.
-
-### 9. Stopped notifications
-
-Notifications arriving after the Subscriber has stopped do not reach the destination. With `config.onStoppedNotification` configured, those ignored notifications are reported asynchronously with the stopped Subscriber.
-
-## Config parity scope
-
-`config` is now present as an RxJS root parity export because Subscriber behavior depends on it.
-
-M02 behaviorally exercises:
-
-- `onUnhandledError`;
-- `onStoppedNotification`;
-- `useDeprecatedNextContext` in unit coverage.
-
-The RxJS-shaped fields `Promise` and `useDeprecatedSynchronousErrorHandling` are also present. Their complete observable-level semantics are not claimed by M02. They will be certified when later milestones implement the execution paths that consume them.
-
-## Functional API versus parity names
-
-Canonical functional APIs after M02:
-
-```ts
-createSubscription(initialTeardown?)
-createSubscriber(destination?)
-```
-
-RxJS root parity names implemented so far:
-
-```text
-Subscription
-UnsubscriptionError
-Subscriber
-config
-```
-
-`Subscription`, `UnsubscriptionError`, and `Subscriber` are ordinary non-constructible functions in the functional kernel. OO invocation forms such as `new Subscriber()` are intentional architectural deviations.
-
-`reference/functional-exports.json` records deliberate FP additions so the parity reporter distinguishes implemented RxJS exports, functional extensions, and accidental unexpected exports.
-
-## Export parity is not yet feature certification
-
-The 4/175 number measures root-name presence, not complete library feature equality. In particular, `config` is present because M02 requires part of its behavior, but not every future consumer of every config field exists yet.
-
-Behavioral claims are milestone-scoped and require differential evidence. Full feature/export certification remains the M19/M20 target.
+Nine differential traces certify active/stopped notification behavior, direct unsubscribe, Subscriber destination chaining, raw destination failures, safe user-handler error reporting, missing error-handler reporting, and stopped-notification reporting.
 
 ## Intentional architectural deviations
 
-The project does not promise OO invocation compatibility such as `new Observable()`, inheritance, or prototype methods as its canonical API. It targets observable behavior and feature capability through a functional runtime.
+The functional kernel does not promise OO invocation compatibility:
+
+- `new Subscription()` is not canonical and is intentionally unsupported;
+- `new Subscriber()` is intentionally unsupported;
+- `new Observable()` is intentionally unsupported;
+- prototype methods and subclassing are intentionally absent.
+
+The target is feature capability and observable semantics through a functional API.
+
+## Export-parity policy
+
+`reference/exports.json` is generated from the pinned RxJS 7.8.2 package. `npm run parity:exports` reports:
+
+- implemented RxJS root exports;
+- missing RxJS root exports;
+- declared functional extensions;
+- accidental unexpected exports.
+
+Full strict export/package parity becomes an M19-M20 gate. Behavioral parity is enforced incrementally from the first runtime milestone onward.
