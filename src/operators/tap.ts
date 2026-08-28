@@ -52,14 +52,15 @@ export function tap<T>(
         isExplicitUnsubscribe = false;
         tapObserver.error?.(sourceError);
         destination.error(sourceError);
+      },
+      () => {
+        if (isExplicitUnsubscribe) {
+          tapObserver.unsubscribe?.();
+        }
+        tapObserver.finalize?.();
       }
     );
 
-    return subscribeOperator(source, operatorSubscriber, () => {
-      if (isExplicitUnsubscribe) {
-        tapObserver.unsubscribe?.();
-      }
-      tapObserver.finalize?.();
-    });
+    return subscribeOperator(source, operatorSubscriber);
   });
 }
