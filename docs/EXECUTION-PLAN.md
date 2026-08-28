@@ -2,13 +2,30 @@
 
 ## M00-M04: prove the kernel
 
-- **M00 Foundation** — oracle, reference material, architecture gate, differential harness, build and parity tooling.
-- **M01 Functional Subscription** — teardown ownership, idempotent cancellation, nested teardown, teardown errors.
-- **M02 Functional Sink** — `next/error/complete`, stopped state, guarded forwarding, finalization.
+- **M00 Foundation ✅** — oracle, reference material, architecture gate, differential harness, build and parity tooling.
+- **M01 Functional Subscription ✅** — closure-owned teardown state, idempotent cancellation, nested ownership, explicit removal, structural unsubscribables, aggregated teardown errors.
+- **M02 Functional Sink — next** — `next/error/complete`, stopped state, guarded forwarding, finalization.
 - **M03 Functional Observable** — lazy execution description, standalone subscription, standalone pipeline composition.
 - **M04 First Vertical Slice** — `of` plus representative `map`/`filter` pipeline end-to-end with differential evidence.
 
 M00-M04 are deliberately reviewed one at a time because they determine the exact functional kernel.
+
+### What M01 established for M02
+
+M02 can now treat cancellation as an independent functional service rather than inheriting lifecycle behavior from a Subscriber class. A sink can own or compose a `Subscription` record without becoming that record through inheritance.
+
+The established lifecycle contract includes:
+
+- `closed` becomes true before teardown runs;
+- unsubscription is idempotent;
+- initial teardown precedes added finalizers;
+- children can belong to multiple parents and self-detach;
+- removing a child removes ownership without cancelling it;
+- finalizers added after closure execute immediately;
+- all finalizers are attempted even when earlier teardown throws;
+- nested unsubscription errors flatten into one aggregate error.
+
+These invariants become assumptions for M02's sink/stopped-state design.
 
 ## M05-M20: recover the RxJS 7.8.2 machine
 
