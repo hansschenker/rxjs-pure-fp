@@ -22,6 +22,7 @@
     "verify": "npm run typecheck && npm run lint && npm run architecture:check && npm run test && npm run test:differential && npm run build && npm run parity:exports && npm run dist:check"
   },
   "devDependencies": {
+    "@types/node": "^26.4.0",
     "@typescript/typescript6": "6.0.2",
     "rxjs": "7.8.2",
     "typescript": "7.0.2"

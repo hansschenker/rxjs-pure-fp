@@ -4,3 +4,4 @@ coverage/
 .reference-cache/
 *.log
 .DS_Store
+examples/todo-mvu/todo-store.json
