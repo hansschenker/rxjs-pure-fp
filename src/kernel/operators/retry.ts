@@ -1,3 +1,4 @@
+import { timer } from '../creation/timer.ts';
 import type { Observable } from '../observable.ts';
 import {
   createOperatorSubscriber,
@@ -9,13 +10,13 @@ import { identity } from '../pipe.ts';
 import type { Subscriber } from '../sink.ts';
 
 /**
- * `delay` accepts a notifier factory only: numeric delays are deferred until
- * the timer surface lands (M14). As in RxJS, a delay notifier that completes
- * without emitting completes the result.
+ * `delay` is either a per-attempt notifier factory or (since M14) a number of
+ * milliseconds, which is `timer(delay)` as in RxJS. A delay notifier that
+ * completes without emitting completes the result.
  */
 export type RetryConfig = {
   readonly count?: number;
-  readonly delay?: (error: unknown, retryCount: number) => Observable<unknown>;
+  readonly delay?: number | ((error: unknown, retryCount: number) => Observable<unknown>);
   readonly resetOnSuccess?: boolean;
 };
 
@@ -57,7 +58,7 @@ export function retry<T>(configOrCount: number | RetryConfig = Infinity): MonoTy
                     syncUnsub = true;
                   }
                 };
-                if (delay) {
+                if (delay != null) {
                   let notifierSubscriber!: Subscriber<unknown>;
                   notifierSubscriber = createOperatorSubscriber<unknown, T>(
                     destination,
@@ -69,7 +70,8 @@ export function retry<T>(configOrCount: number | RetryConfig = Infinity): MonoTy
                       destination.complete();
                     }
                   );
-                  subscribeOperator(delay(error, soFar), notifierSubscriber);
+                  const notifier = typeof delay === 'number' ? timer(delay) : delay(error, soFar);
+                  subscribeOperator(notifier, notifierSubscriber);
                 } else {
                   resub();
                 }

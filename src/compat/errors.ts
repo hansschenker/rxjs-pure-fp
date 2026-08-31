@@ -4,6 +4,7 @@ import {
   createNotFoundError,
   createObjectUnsubscribedError,
   createSequenceError,
+  createTimeoutError,
 } from '../kernel/errors.ts';
 
 /**
@@ -20,3 +21,5 @@ export const SequenceError = (message: string): Error => createSequenceError(mes
 export const NotFoundError = (message: string): Error => createNotFoundError(message);
 
 export const ObjectUnsubscribedError = (): Error => createObjectUnsubscribedError();
+
+export const TimeoutError = (info: unknown = null): Error => createTimeoutError(info);

@@ -25,6 +25,16 @@ export type Scheduler = {
   readonly schedule: <S>(work: SchedulerWork<S>, delay?: number, state?: S) => Subscription;
 };
 
+/**
+ * Structural scheduler detection for the polymorphic compat argument
+ * positions (`timer(due, intervalOrScheduler)`), mirroring RxJS's
+ * `isScheduler` duck check.
+ */
+export const isScheduler = (value: unknown): value is Scheduler =>
+  typeof value === 'object' &&
+  value !== null &&
+  typeof (value as { readonly schedule?: unknown }).schedule === 'function';
+
 const composeAction = <S>(
   lifecycle: LifecycleState,
   scheduleSelf: (state?: S, delay?: number) => Subscription

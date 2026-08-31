@@ -1,26 +1,27 @@
 # RxJS 7.8.2 Parity
 
-## Current milestone: M13 — Scheduler Kernel (Session 3 in progress)
+## Current milestone: M14 — Temporal Operators (Session 3 in progress)
 
-Session 1 (M01-M05) is complete; Session 2 is in progress. Between M05 and
-M06, the F1-F8 functional-deepening work (docs/FP-ROADMAP.md) restructured the
-source into `src/kernel/**` and `src/compat/**` without changing behavioral
-scope. M07 introduced the shared flattening machine; M08 wrapped it into the
-public flattening family; M09 adds the multi-source coordination surface.
+Sessions 1 (M01-M05) and 2 (M06-M10) are complete; Session 3 is in progress
+with M11-M14 landed. Between M05 and M06, the F1-F8 functional-deepening work
+(docs/FP-ROADMAP.md) restructured the source into `src/kernel/**` and
+`src/compat/**` without changing behavioral scope. M13 built the scheduler
+kernel over the `timerHost` edge; M14 turns it into the public temporal
+surface.
 
-| Dimension | M13 status |
+| Dimension | M14 status |
 | --- | --- |
 | Behavioral oracle | pinned `rxjs@7.8.2` |
-| Architecture gate | passes across 82 TypeScript source files |
-| Unit tests | 95 / 95 |
-| Differential tests | 179 / 179 total |
-| New M13 differential traces | 7 |
-| RxJS root exports implemented | 86 / 175 = 49.1% |
+| Architecture gate | passes across 96 TypeScript source files |
+| Unit tests | 114 / 114 |
+| Differential tests | 202 / 202 total |
+| New M14 differential traces | 23 |
+| RxJS root exports implemented | 101 / 175 = 57.7% |
 | Functional root extensions | 16 |
 | Unexpected root exports | 0 |
-| Distribution architecture | passes across 164 emitted JavaScript files |
+| Distribution architecture | passes across 192 emitted JavaScript files |
 
-## Root parity exports through M06
+## Root parity exports through M14
 
 ### Runtime/core
 
@@ -39,11 +40,14 @@ public flattening family; M09 adds the multi-source coordination surface.
 - `ArgumentOutOfRangeError`
 - `SequenceError`
 - `NotFoundError`
+- `TimeoutError`
 
 ### Creation
 
 - `of`
 - `EMPTY`
+- `timer`
+- `interval`
 
 ### Projection/querying
 
@@ -107,6 +111,21 @@ public flattening family; M09 adds the multi-source coordination surface.
 - `queueScheduler` / `queue`
 - `observeOn`
 - `subscribeOn`
+
+### Temporal
+
+- `delay`
+- `delayWhen`
+- `debounce`
+- `debounceTime`
+- `audit`
+- `auditTime`
+- `throttle`
+- `throttleTime`
+- `sample`
+- `sampleTime`
+- `timeout`
+- `timeoutWith`
 
 ### Error & resubscription
 
@@ -440,8 +459,39 @@ hub records (the documented sharing topology) and are not frozen.
 - M11: 11 sharing traces
 - M12: 13 error/resubscription traces
 - M13: 7 scheduler traces
+- M14: 23 temporal traces
 
-Total: **179 / 179** differential tests.
+Total: **202 / 202** differential tests.
+
+## M14 certified scope
+
+`timer`: one-shot due times (delays and past/future `Date`s), periodic
+continuation through action rescheduling, the scheduler-in-second-position
+polymorphic argument, pre-fire cancellation. `interval`: periodic counter as
+`timer(p, p)` with negative-period clamping. `delay` / `delayWhen`: uniform
+shift as delayWhen-over-one-cold-timer; per-value durations including
+reordering; completion held for pending durations; empty-duration value drop
+(the v7 semantics change); errors not delayed. `debounce` / `debounceTime`:
+latest-value quiet-period emission, per-value duration cancellation,
+completion flush, swallowed duration completions. `audit` / `auditTime`:
+window opened by the first value only, latest value flushed at window end,
+completion deferred while a window is pending, synchronous durations.
+`throttle` / `throttleTime`: leading/trailing as policy data, trailing sends
+re-opening the window, completion deferred for a pending trailing value,
+synchronous durations. `sample` / `sampleTime`: latest value at most once per
+notifier tick, swallowed notifier completion. `timeout` / `timeoutWith` /
+`TimeoutError`: `first`/`each` deadlines (numbers and `Date`s), per-value
+re-arming, `with`-factory switching, `TimeoutError` diagnostics
+(`{meta, seen, lastValue}`), synchronous `TypeError`s for missing
+deadline/fallback, the deprecated `timeout(due, scheduler)` overload.
+`retry` / `repeat`: numeric `delay` options wired through `timer` (closing
+the M12 deferral).
+
+**Deviations/deferrals:** duration selectors, notifiers, and `with` factories
+must return functional Observables (`ObservableInput` conversion deferred);
+`delayWhen`'s deprecated `subscriptionDelay` argument deferred to the
+remaining-surface milestone; `TimeoutError` is a functional factory over
+platform `Error` (identity via `name`), like the other parity errors.
 
 ## M13 certified scope
 
@@ -466,7 +516,7 @@ repetition with per-attempt teardown, `repeat(0)` as EMPTY, notifier-factory
 delays with repeat counts. `throwError`: per-subscription factory invocation
 and plain-value form.
 
-**Deviations/deferrals:** numeric delays await M14 timers;
+**Deviations/deferrals:** numeric delays landed with the M14 timer surface;
 `retryWhen`/`repeatWhen`/`onErrorResumeNext` and `throwError`'s scheduler
 argument deferred to the remaining-surface milestone.
 
@@ -489,7 +539,7 @@ scheduler arguments deferred until clocks land.
 
 ## Interpretation of export parity
 
-The current 16/175 score measures root-name coverage only. It is not a direct percentage of engineering completion.
+The current 101/175 score measures root-name coverage only. It is not a direct percentage of engineering completion.
 
 A root export can also have intentionally deferred overload/interoperability scope. Such gaps are recorded explicitly rather than hidden by the export count.
 

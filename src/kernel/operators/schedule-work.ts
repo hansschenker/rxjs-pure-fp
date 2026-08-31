@@ -4,18 +4,20 @@ import type { Subscription } from '../subscription.ts';
 /**
  * Schedules one unit of work owned by `parent`: the action joins the parent's
  * lifecycle so unsubscription cancels pending work, and a completed action
- * removes itself again.
+ * removes itself again. Returns the action so callers can cancel just this
+ * unit (RxJS's `executeSchedule` non-repeating contract, used by `timeout`).
  */
 export const executeScheduledWork = (
   parent: Subscription,
   scheduler: Scheduler,
   work: () => void,
   delay = 0
-): void => {
+): Subscription => {
   let action: Subscription | null = null;
   action = scheduler.schedule(() => {
     work();
     action?.unsubscribe();
   }, delay);
   parent.add(action);
+  return action;
 };

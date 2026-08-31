@@ -251,7 +251,8 @@ surface, matching the `distinct` flush policy.
 
 Deviations: `BehaviorSubject.value` is a live snapshot data property (it does
 not throw; use `getValue()` for the throwing contract); `ReplaySubject`
-supports the size window only until clocks land (M13/M14); subject methods do
+supports the size window only (time windows still unwired, though clocks
+landed in M13/M14); subject methods do
 not participate in the deprecated synchronous error context; subjects are
 mutable hub records and therefore not frozen.
 
@@ -296,7 +297,7 @@ are not claimed); replay time windows remain deferred until clocks land.
 - `throwError` treats a function argument as an error factory invoked per
   subscription.
 
-M12 scope notes: numeric delays await the timer surface (M14); deprecated
+M12 scope notes: numeric delays landed with the timer surface (M14); deprecated
 `retryWhen`/`repeatWhen`/`onErrorResumeNext` and the scheduler argument of
 `throwError` are deferred to the remaining-surface milestone.
 
@@ -319,6 +320,38 @@ M12 scope notes: numeric delays await the timer surface (M14); deprecated
 M13 scope notes: `animationFrameScheduler`, the deprecated `Scheduler` class
 shape, `scheduled`, and virtual time are deferred (platform/M17 surfaces);
 work-throw propagation follows the host timer's uncaught path.
+
+## Temporal operators (M14)
+
+- `timer` is the single time primitive: one reschedulable action emitting a
+  counter. A `Date` due is `+due - scheduler.now()` clamped at zero; a
+  scheduler in the interval position selects execution policy instead
+  (RxJS's polymorphic argument).
+- Timer algebra: `interval(p)` ≡ `timer(p, p)` (negative periods clamp);
+  `delay(due)` ≡ `delayWhen(() => timer(due))`; `delayWhen(selector)` ≡
+  `mergeMap((v, i) => selector(v, i)` piped through `take(1)`, `map(() => v))`
+  — the RxJS 7 construction, so a duration completing without a value drops
+  that value and errors are never delayed.
+- Rate limiting is four distinct window policies: `debounce` cancels the
+  pending duration on every new value and flushes on completion; `audit`
+  opens one window per quiet period (first value) and emits the latest at
+  window end; `throttle` carries `{leading, trailing}` as policy data and a
+  trailing send re-opens the window itself; `sample` emits the latest at most
+  once per external notifier tick and ignores notifier completion.
+- Completion handshakes are part of the semantics: debounce flushes
+  immediately, audit and a trailing throttle defer completion while a window
+  is pending, sample completes with the source. The `*Time` forms are the
+  same operators over `timer`/`interval`.
+- `timeout` arms `first`/`each` deadlines as owned scheduled work; expiry
+  unsubscribes the source and switches to the `with` observable, or throws a
+  `TimeoutError` carrying `{meta, seen, lastValue}` diagnostics. A missing
+  deadline is a synchronous `TypeError` at call time.
+- `retry`/`repeat` numeric `delay` options are `timer(delay)` notifiers.
+
+M14 scope notes: duration selectors, notifiers, and `with` factories take
+functional Observables (`ObservableInput` conversion deferred); `delayWhen`'s
+deprecated `subscriptionDelay` argument is deferred to the remaining-surface
+milestone.
 
 ## Algebraic structures (F8)
 

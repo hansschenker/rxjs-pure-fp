@@ -1,4 +1,5 @@
 import { EMPTY } from '../creation/empty.ts';
+import { timer } from '../creation/timer.ts';
 import { type Observable } from '../observable.ts';
 import {
   createOperatorSubscriber,
@@ -9,13 +10,13 @@ import {
 import type { Subscriber } from '../sink.ts';
 
 /**
- * `delay` accepts a notifier factory only: numeric delays are deferred until
- * the timer surface lands (M14). As in RxJS, a delay notifier that completes
- * without emitting completes the result.
+ * `delay` is either a per-repeat notifier factory or (since M14) a number of
+ * milliseconds, which is `timer(delay)` as in RxJS. A delay notifier that
+ * completes without emitting completes the result.
  */
 export type RepeatConfig = {
   readonly count?: number;
-  readonly delay?: (repeatCount: number) => Observable<unknown>;
+  readonly delay?: number | ((repeatCount: number) => Observable<unknown>);
 };
 
 export function repeat<T>(count?: number): MonoTypeOperatorFunction<T>;
@@ -35,7 +36,7 @@ export function repeat<T>(countOrConfig: number | RepeatConfig = Infinity): Mono
         const resubscribe = (): void => {
           sourceSubscriber?.unsubscribe();
           sourceSubscriber = null;
-          if (delay) {
+          if (delay != null) {
             let notifierSubscriber!: Subscriber<unknown>;
             notifierSubscriber = createOperatorSubscriber<unknown, T>(
               destination,
@@ -47,7 +48,8 @@ export function repeat<T>(countOrConfig: number | RepeatConfig = Infinity): Mono
                 destination.complete();
               }
             );
-            subscribeOperator(delay(soFar), notifierSubscriber);
+            const notifier = typeof delay === 'number' ? timer(delay) : delay(soFar);
+            subscribeOperator(notifier, notifierSubscriber);
           } else {
             subscribeToSource();
           }

@@ -594,7 +594,7 @@ Session 3 opens with explicit sharing over the M10 hub: `share` = one connection
 
 # M12 — Error & Resubscription
 
-Recovery as resubscription policy: `catchError` (selector gets the error *and* the caught observable; synchronous-error switching preserved), `retry` (`count`, `resetOnSuccess`, notifier-factory delays — a delay notifier completing without a value completes the result, an RxJS quirk kept), `repeat` (bounded re-execution with per-attempt teardown), `finalize` (once, after source teardown), and `throwError` (per-subscription error factories). `retry(0)` is the identity operator; `repeat(0)` is `EMPTY`. Numeric delays await the M14 timer surface.
+Recovery as resubscription policy: `catchError` (selector gets the error *and* the caught observable; synchronous-error switching preserved), `retry` (`count`, `resetOnSuccess`, notifier-factory delays — a delay notifier completing without a value completes the result, an RxJS quirk kept), `repeat` (bounded re-execution with per-attempt teardown), `finalize` (once, after source teardown), and `throwError` (per-subscription error factories). `retry(0)` is the identity operator; `repeat(0)` is `EMPTY`. Numeric delays landed with the M14 timer surface.
 
 # M12 verification
 
@@ -614,7 +614,56 @@ Execution-time policy, functionally: `runtime.ts` grows a `timerHost` record —
 
 ---
 
-# Root parity after M10
+# M14 — Temporal Operators
+
+The M13 action machine becomes the public temporal surface. `timer` is the
+single time primitive — one reschedulable action emitting a counter — and
+most of M14 is algebra over it:
+
+```text
+timer(due, interval?)      the primitive
+interval(p)              = timer(p, p)
+delay(due)               = delayWhen(() => timer(due))
+delayWhen(selector)      = mergeMap(v => duration.pipe(take(1), map(() => v)))
+debounceTime(t)          = debounce(() => timer(t))
+auditTime(t)             = audit(() => timer(t))
+throttleTime(t, s, cfg)  = throttle(() => timer(t), cfg)
+sampleTime(p)            = sample(interval(p))
+timeoutWith(due, alt)    = timeout({ ..., with: () => alt })
+```
+
+The four rate-limiting policies are kept distinct because they answer
+different questions about a quiet window:
+
+```text
+debounce   last value after silence     new value cancels the window
+audit      last value per window        first value opens the window
+throttle   window edges as policy       leading / trailing as data
+sample     last value per notifier tick window is external
+```
+
+`throttle`'s `{leading, trailing}` config is policy data over one duration
+mechanism; a trailing send re-opens the window itself. Completion interacts
+with pending windows differentially: debounce flushes immediately, audit and
+a trailing throttle defer completion until the window settles, sample
+completes with the source. All of these handshakes are pinned against the
+oracle, including synchronous durations.
+
+`timeout` is deadline policy over owned scheduled work — `first` bounds the
+initial value, `each` re-arms per value, expiry either switches to the
+`with` fallback or throws a `TimeoutError` carrying `{meta, seen, lastValue}`
+diagnostics (a functional factory over platform `Error`, like every other
+parity error). `retry`/`repeat` numeric `delay` options now route through
+`timer`, closing the M12 deferral.
+
+# M14 verification
+
+- **114 / 114 unit** and **202 / 202 differential tests** pass (23 new M14 traces: timer/interval one-shot, Date dues, periodic continuation; delay shifting and undelayed errors; delayWhen reordering and empty-duration drops; debounce/audit/throttle notifier handshakes incl. synchronous durations; sample gating; timeout first/each/fallback/compat; retry/repeat numeric delays);
+- RxJS root export parity: **101 / 175 = 57.7%**; unexpected exports: **0**.
+
+---
+
+# Root parity after M14
 
 Implemented RxJS 7.8.2 root exports:
 
@@ -634,10 +683,13 @@ Errors
   ArgumentOutOfRangeError
   SequenceError
   NotFoundError
+  TimeoutError
 
 Creation
   of
   EMPTY
+  timer
+  interval
 
 Projection / querying
   map
@@ -682,9 +734,17 @@ Schedulers
   asyncScheduler  asapScheduler  queueScheduler
   async           asap           queue
   observeOn       subscribeOn
+
+Temporal
+  delay       delayWhen
+  debounce    debounceTime
+  audit       auditTime
+  throttle    throttleTime
+  sample      sampleTime
+  timeout     timeoutWith
 ```
 
-That is **86 / 175 = 49.1%** of the root export names.
+That is **101 / 175 = 57.7%** of the root export names.
 
 ## Deliberate functional extensions
 
@@ -783,8 +843,8 @@ catchError/retry/repeat/finalize + throwError; resubscription with notifier-fact
 ### M13 — Scheduler Kernel ✅
 timerHost edge + one action machine; async/queue/asap as frozen policy records; observeOn/subscribeOn.
 
-### M14 — Temporal Operators
-timer/interval/delay/debounce/audit/throttle/sample/timeout.
+### M14 — Temporal Operators ✅
+timer/interval as the time primitive; delay/delayWhen, debounce/audit/throttle/sample families as timer algebra + notifier handshakes; timeout/timeoutWith/TimeoutError; retry/repeat numeric delays.
 
 ### M15 — Boundary & Collection
 buffer/window/groupBy families.
@@ -811,11 +871,11 @@ final behavioral and export parity matrix.
 ```text
 Session 1  M01-M05   ✅ kernel + first-order operator policies
 Session 2  M06-M10   ✅ gating + higher-order + flattening + coordination + Subjects
-Session 3  M11-M15   ⏳ sharing ✅ + recovery ✅ + scheduling ✅ + time + boundaries
+Session 3  M11-M15   ⏳ sharing ✅ + recovery ✅ + scheduling ✅ + time ✅ + boundaries
 Session 4  M16-M20      platform + testing + remaining surface + certification
 ```
 
-Sessions 1 and 2 are complete; Session 3 is in progress (M11 ✅ M12 ✅ M13 ✅). Next is **M14 — Temporal Operators**.
+Sessions 1 and 2 are complete; Session 3 is in progress (M11 ✅ M12 ✅ M13 ✅ M14 ✅). Next is **M15 — Boundary & Collection**.
 
 ---
 

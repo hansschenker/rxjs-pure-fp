@@ -14,6 +14,7 @@ export {
   NotFoundError,
   ObjectUnsubscribedError,
   SequenceError,
+  TimeoutError,
 } from './compat/errors.ts';
 export {
   AsyncSubject,
@@ -65,8 +66,10 @@ export {
 } from './compat/subscription.ts';
 export { createSubscription } from './kernel/subscription.ts';
 export { EMPTY } from './kernel/creation/empty.ts';
+export { interval } from './kernel/creation/interval.ts';
 export { of } from './kernel/creation/of.ts';
 export { throwError } from './kernel/creation/throw-error.ts';
+export { timer } from './kernel/creation/timer.ts';
 export {
   asapScheduler,
   asapScheduler as asap,
@@ -83,6 +86,20 @@ export type {
 export { catchError } from './kernel/operators/catch-error.ts';
 export { observeOn } from './kernel/operators/observe-on.ts';
 export { subscribeOn } from './kernel/operators/subscribe-on.ts';
+export { audit } from './kernel/operators/audit.ts';
+export { auditTime } from './kernel/operators/audit-time.ts';
+export { debounce } from './kernel/operators/debounce.ts';
+export { debounceTime } from './kernel/operators/debounce-time.ts';
+export { delay } from './kernel/operators/delay.ts';
+export { delayWhen } from './kernel/operators/delay-when.ts';
+export { sample } from './kernel/operators/sample.ts';
+export { sampleTime } from './kernel/operators/sample-time.ts';
+export { throttle } from './kernel/operators/throttle.ts';
+export { throttleTime } from './kernel/operators/throttle-time.ts';
+export { timeout } from './kernel/operators/timeout.ts';
+export { timeoutWith } from './compat/temporal.ts';
+export type { ThrottleConfig } from './kernel/operators/throttle.ts';
+export type { TimeoutConfig, TimeoutInfo } from './kernel/operators/timeout.ts';
 export { finalize } from './kernel/operators/finalize.ts';
 export { repeat } from './kernel/operators/repeat.ts';
 export { retry } from './kernel/operators/retry.ts';
