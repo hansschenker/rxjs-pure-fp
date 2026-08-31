@@ -300,6 +300,26 @@ M12 scope notes: numeric delays await the timer surface (M14); deprecated
 `retryWhen`/`repeatWhen`/`onErrorResumeNext` and the scheduler argument of
 `throwError` are deferred to the remaining-surface milestone.
 
+## Scheduler kernel (M13)
+
+- All host clock/interval/microtask access lives in `runtime.ts`'s
+  `timerHost`; the scheduler kernel consumes only that edge (gate-enforced).
+- Work receives its action as a parameter — `(state, action) => void` — and
+  reschedules via `action.schedule(state, delay)`; actions are frozen
+  Subscription records, so unsubscription cancels pending work.
+- `asyncScheduler` recycles a same-delay reschedule's interval (periodic
+  ticking); an action not rescheduled during its work releases its timer.
+- `queueScheduler` at zero delay is a synchronous trampoline: nested
+  schedules run after the current work, before control returns.
+- `asapScheduler` at zero delay batches into one microtask; work scheduled
+  during a flush joins that flush. Positive delays delegate to async.
+- `observeOn` re-emits each notification through owned actions;
+  `subscribeOn` defers the act of subscription itself.
+
+M13 scope notes: `animationFrameScheduler`, the deprecated `Scheduler` class
+shape, `scheduled`, and virtual time are deferred (platform/M17 surfaces);
+work-throw propagation follows the host timer's uncaught path.
+
 ## Algebraic structures (F8)
 
 Several kernel structures are named algebras. Every law below is executable:
@@ -344,4 +364,4 @@ policy's algebra separately.
 
 ## Differential evidence
 
-Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contained 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies; the F-work added kernel-operator suites, M06 added 21 selection/gating traces, M07 added 15 flattening-machine traces, M08 added 17 flattening-operator traces, M09 added 19 coordination traces, M10 added 10 subject traces, M11 added 11 sharing traces, and M12 adds 13 error/resubscription traces for a current total of 172 differential tests.
+Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contained 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies; the F-work added kernel-operator suites, M06 added 21 selection/gating traces, M07 added 15 flattening-machine traces, M08 added 17 flattening-operator traces, M09 added 19 coordination traces, M10 added 10 subject traces, M11 added 11 sharing traces, M12 added 13 error/resubscription traces, and M13 adds 7 scheduler traces for a current total of 179 differential tests.

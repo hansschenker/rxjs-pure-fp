@@ -67,7 +67,22 @@ export { createSubscription } from './kernel/subscription.ts';
 export { EMPTY } from './kernel/creation/empty.ts';
 export { of } from './kernel/creation/of.ts';
 export { throwError } from './kernel/creation/throw-error.ts';
+export {
+  asapScheduler,
+  asapScheduler as asap,
+  asyncScheduler,
+  asyncScheduler as async,
+  queueScheduler,
+  queueScheduler as queue,
+} from './kernel/scheduler.ts';
+export type {
+  Scheduler as SchedulerLike,
+  SchedulerAction,
+  SchedulerWork,
+} from './kernel/scheduler.ts';
 export { catchError } from './kernel/operators/catch-error.ts';
+export { observeOn } from './kernel/operators/observe-on.ts';
+export { subscribeOn } from './kernel/operators/subscribe-on.ts';
 export { finalize } from './kernel/operators/finalize.ts';
 export { repeat } from './kernel/operators/repeat.ts';
 export { retry } from './kernel/operators/retry.ts';

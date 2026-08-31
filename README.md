@@ -603,6 +603,17 @@ Recovery as resubscription policy: `catchError` (selector gets the error *and* t
 
 ---
 
+# M13 — Scheduler Kernel
+
+Execution-time policy, functionally: `runtime.ts` grows a `timerHost` record — the single gate-enforced host edge for clocks, intervals, and microtasks — and `kernel/scheduler.ts` builds one reschedulable action machine over it, with schedulers as frozen policy records: **async** (interval-backed actions with RxJS id recycling, so same-delay self-reschedules keep one ticking interval), **queue** (synchronous trampoline at zero delay), **asap** (one-microtask batching, mid-flush work joins the flush). Work is `(state, action) => void` — the action arrives as a parameter, not `this` — and actions are frozen Subscription records, so cancellation is ordinary unsubscription. `observeOn` and `subscribeOn` ride on top through owned scheduled work.
+
+# M13 verification
+
+- **95 / 95 unit** and **179 / 179 differential tests** pass (7 new async M13 traces: trampoline, ordering, batching, reschedule, cancellation, observeOn, subscribeOn);
+- RxJS root export parity: **86 / 175 = 49.1%**; unexpected exports: **0**.
+
+---
+
 # Root parity after M10
 
 Implemented RxJS 7.8.2 root exports:
@@ -666,9 +677,14 @@ Sharing
 
 Error / resubscription
   catchError  retry   repeat    finalize      throwError
+
+Schedulers
+  asyncScheduler  asapScheduler  queueScheduler
+  async           asap           queue
+  observeOn       subscribeOn
 ```
 
-That is **78 / 175 = 44.6%** of the root export names.
+That is **86 / 175 = 49.1%** of the root export names.
 
 ## Deliberate functional extensions
 
@@ -764,8 +780,8 @@ share/shareReplay with reset policies as data; connectable/connect explicit conn
 ### M12 — Error & Resubscription ✅
 catchError/retry/repeat/finalize + throwError; resubscription with notifier-factory delay policies.
 
-### M13 — Scheduler Kernel
-Functional clock/queue/request/cancel/flush policies.
+### M13 — Scheduler Kernel ✅
+timerHost edge + one action machine; async/queue/asap as frozen policy records; observeOn/subscribeOn.
 
 ### M14 — Temporal Operators
 timer/interval/delay/debounce/audit/throttle/sample/timeout.
@@ -795,11 +811,11 @@ final behavioral and export parity matrix.
 ```text
 Session 1  M01-M05   ✅ kernel + first-order operator policies
 Session 2  M06-M10   ✅ gating + higher-order + flattening + coordination + Subjects
-Session 3  M11-M15   ⏳ sharing ✅ + recovery ✅ + scheduling + time + boundaries
+Session 3  M11-M15   ⏳ sharing ✅ + recovery ✅ + scheduling ✅ + time + boundaries
 Session 4  M16-M20      platform + testing + remaining surface + certification
 ```
 
-Sessions 1 and 2 are complete; Session 3 is in progress (M11 ✅ M12 ✅). Next is **M13 — Scheduler Kernel**.
+Sessions 1 and 2 are complete; Session 3 is in progress (M11 ✅ M12 ✅ M13 ✅). Next is **M14 — Temporal Operators**.
 
 ---
 

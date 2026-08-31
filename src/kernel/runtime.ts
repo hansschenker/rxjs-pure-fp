@@ -17,6 +17,31 @@ export type RuntimeEnv = {
 };
 
 /**
+ * M13: the host scheduling edge. Every clock, interval, and microtask the
+ * kernel uses flows through this record — the scheduler kernel consumes it,
+ * and the architecture gate keeps host timer access confined to this module.
+ */
+export type TimerId = ReturnType<typeof globalThis.setInterval>;
+
+export type TimerHost = {
+  readonly now: () => number;
+  readonly interval: (handler: () => void, delayMillis: number) => TimerId;
+  readonly cancelInterval: (id: TimerId) => void;
+  readonly microtask: (task: () => void) => void;
+};
+
+export const timerHost: TimerHost = Object.freeze({
+  now: () => Date.now(),
+  interval: (handler: () => void, delayMillis: number): TimerId => globalThis.setInterval(handler, delayMillis),
+  cancelInterval: (id: TimerId): void => {
+    globalThis.clearInterval(id);
+  },
+  microtask: (task: () => void): void => {
+    globalThis.queueMicrotask(task);
+  },
+});
+
+/**
  * The environment used when none is injected: silent policies, host timer as
  * the deferral edge. The RxJS 7.8.2 parity environment (backed by the mutable
  * `config` object) is compat surface: `src/compat/config.ts`.

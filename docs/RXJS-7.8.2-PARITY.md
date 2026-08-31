@@ -1,6 +1,6 @@
 # RxJS 7.8.2 Parity
 
-## Current milestone: M12 — Error & Resubscription (Session 3 in progress)
+## Current milestone: M13 — Scheduler Kernel (Session 3 in progress)
 
 Session 1 (M01-M05) is complete; Session 2 is in progress. Between M05 and
 M06, the F1-F8 functional-deepening work (docs/FP-ROADMAP.md) restructured the
@@ -8,17 +8,17 @@ source into `src/kernel/**` and `src/compat/**` without changing behavioral
 scope. M07 introduced the shared flattening machine; M08 wrapped it into the
 public flattening family; M09 adds the multi-source coordination surface.
 
-| Dimension | M12 status |
+| Dimension | M13 status |
 | --- | --- |
 | Behavioral oracle | pinned `rxjs@7.8.2` |
-| Architecture gate | passes across 78 TypeScript source files |
+| Architecture gate | passes across 82 TypeScript source files |
 | Unit tests | 95 / 95 |
-| Differential tests | 172 / 172 total |
-| New M12 differential traces | 13 |
-| RxJS root exports implemented | 78 / 175 = 44.6% |
+| Differential tests | 179 / 179 total |
+| New M13 differential traces | 7 |
+| RxJS root exports implemented | 86 / 175 = 49.1% |
 | Functional root extensions | 16 |
 | Unexpected root exports | 0 |
-| Distribution architecture | passes across 156 emitted JavaScript files |
+| Distribution architecture | passes across 164 emitted JavaScript files |
 
 ## Root parity exports through M06
 
@@ -99,6 +99,14 @@ public flattening family; M09 adds the multi-source coordination surface.
 - `ReplaySubject`
 - `AsyncSubject`
 - `ObjectUnsubscribedError`
+
+### Schedulers
+
+- `asyncScheduler` / `async`
+- `asapScheduler` / `asap`
+- `queueScheduler` / `queue`
+- `observeOn`
+- `subscribeOn`
 
 ### Error & resubscription
 
@@ -431,8 +439,20 @@ hub records (the documented sharing topology) and are not frozen.
 - M10: 10 subject traces
 - M11: 11 sharing traces
 - M12: 13 error/resubscription traces
+- M13: 7 scheduler traces
 
-Total: **172 / 172** differential tests.
+Total: **179 / 179** differential tests.
+
+## M13 certified scope
+
+Queue trampoline flattening of nested zero-delay work; sync → queue → asap
+(microtask) → async (macrotask) ordering; asap flush batching including work
+scheduled mid-flush; interval-recycled self-rescheduling with terminal state;
+pre-fire cancellation of async and asap actions; `observeOn` asynchronous
+re-emission with completion; `subscribeOn` deferred subscription. RxJS's
+`this`-bound work signature is adapted to `(state, action)` (recorded
+functional deviation); `animationFrameScheduler`, `Scheduler`, `scheduled`,
+`TimestampProvider` inputs, and virtual time are deferred.
 
 ## M12 certified scope
 
