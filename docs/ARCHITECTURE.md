@@ -402,3 +402,16 @@ a closed subject throws `ObjectUnsubscribedError` synchronously to the
 subscribe caller, while nested executions route it to the error channel), and
 observer-shape detection in the safe-subscriber boundary (a callable record
 with observer methods is an observer, not a next-callback).
+
+---
+
+# M11 — Sharing topology
+
+`kernel/sharing.ts` builds explicit sharing on the M10 hub: `share` is one
+connection (a kernel Subscriber wrapping the connector Subject) plus reset
+policies as data — boolean or notifier-factory for error/complete/refCount-
+zero, with notifier cancellation on resubscribe. `shareReplay` is algebra
+over `share` with a replay connector; `connectable` is a branded callable
+record carrying an idempotent `connect()`; the `connect` operator multicasts
+per subscription for a selector-built pipeline. State lives per shared-source
+application, in closures.

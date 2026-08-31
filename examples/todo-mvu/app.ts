@@ -12,6 +12,7 @@ import {
   of,
   pipeValue,
   scan,
+  share,
   subscribe,
 } from '../../src/index.ts';
 import type { ObservableLike as Observable } from '../../src/index.ts';
@@ -51,7 +52,15 @@ const executeCmd = (cmd: Cmd): Observable<Msg> =>
  */
 export const runApp = (render: (frame: string) => void): App => {
   const messages = createSubject<Msg>();
-  const steps = createSubject<Step>();
+
+  // Msg → Step: one pure fold, seeded with an initial frame and multicast
+  // with a real share() (M11) — one scan, many consumers.
+  const steps = pipeValue(
+    messages,
+    scan((step: Step, msg: Msg) => update(step[0], msg), [initialModel, cmdNone] as Step),
+    startWith([initialModel, cmdNone] as Step),
+    share<Step>()
+  );
 
   // Model → View: only frames whose model actually changed.
   subscribe({ next: render })(
@@ -70,15 +79,6 @@ export const runApp = (render: (frame: string) => void): App => {
       map((step: Step) => step[1]),
       filter((cmd: Cmd): cmd is Cmd & { readonly kind: 'persist' } => cmd.kind !== 'none'),
       mergeMap(executeCmd)
-    )
-  );
-
-  // Msg → Model: the single pure fold, seeded with an initial frame.
-  subscribe(steps)(
-    pipeValue(
-      messages,
-      scan((step: Step, msg: Msg) => update(step[0], msg), [initialModel, cmdNone] as Step),
-      startWith([initialModel, cmdNone] as Step)
     )
   );
 

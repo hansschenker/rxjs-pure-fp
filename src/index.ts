@@ -22,6 +22,19 @@ export {
   Subject,
 } from './compat/subject.ts';
 export {
+  connect,
+  connectable,
+  share,
+  shareReplay,
+} from './kernel/sharing.ts';
+export type {
+  Connectable,
+  ConnectableConfig,
+  ConnectConfig,
+  ShareConfig,
+  ShareReplayConfig,
+} from './kernel/sharing.ts';
+export {
   createAsyncSubject,
   createBehaviorSubject,
   createReplaySubject,

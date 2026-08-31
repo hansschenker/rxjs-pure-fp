@@ -1,6 +1,6 @@
 # RxJS 7.8.2 Parity
 
-## Current milestone: M10 — Functional Subjects (Session 2 complete)
+## Current milestone: M11 — Sharing Topology (Session 3 in progress)
 
 Session 1 (M01-M05) is complete; Session 2 is in progress. Between M05 and
 M06, the F1-F8 functional-deepening work (docs/FP-ROADMAP.md) restructured the
@@ -8,17 +8,17 @@ source into `src/kernel/**` and `src/compat/**` without changing behavioral
 scope. M07 introduced the shared flattening machine; M08 wrapped it into the
 public flattening family; M09 adds the multi-source coordination surface.
 
-| Dimension | M10 status |
+| Dimension | M11 status |
 | --- | --- |
 | Behavioral oracle | pinned `rxjs@7.8.2` |
-| Architecture gate | passes across 72 TypeScript source files |
-| Unit tests | 91 / 91 |
-| Differential tests | 148 / 148 total |
-| New M10 differential traces | 10 |
-| RxJS root exports implemented | 69 / 175 = 39.4% |
+| Architecture gate | passes across 73 TypeScript source files |
+| Unit tests | 93 / 93 |
+| Differential tests | 159 / 159 total |
+| New M11 differential traces | 11 |
+| RxJS root exports implemented | 73 / 175 = 41.7% |
 | Functional root extensions | 16 |
 | Unexpected root exports | 0 |
-| Distribution architecture | passes across 144 emitted JavaScript files |
+| Distribution architecture | passes across 146 emitted JavaScript files |
 
 ## Root parity exports through M06
 
@@ -99,6 +99,13 @@ public flattening family; M09 adds the multi-source coordination surface.
 - `ReplaySubject`
 - `AsyncSubject`
 - `ObjectUnsubscribedError`
+
+### Sharing
+
+- `share`
+- `shareReplay`
+- `connectable`
+- `connect`
 
 ### Coordination
 
@@ -414,8 +421,26 @@ hub records (the documented sharing topology) and are not frozen.
 - M08: 17 flattening-operator traces
 - M09: 19 coordination traces
 - M10: 10 subject traces
+- M11: 11 sharing traces
 
-Total: **148 / 148** differential tests.
+Total: **159 / 159** differential tests.
+
+## M11 certified scope
+
+`share`: single connection per shared application; multicast with late
+subscribers; refCount-zero reset (default) vs keep-alive
+(`resetOnRefCountZero: false`) vs notifier-delayed reset incl. cancellation
+on resubscribe; resetOnComplete/resetOnError defaults and opt-outs (settled
+subjects serving late subscribers without re-running the source).
+`shareReplay`: buffer replay to late and re-subscribing consumers, keep-alive
+default, `refCount: true` teardown, post-complete replay without re-run.
+`connectable`: silent subscribers before `connect()`, idempotent connect,
+disconnect teardown, fresh-subject reconnect. `connect`: one source run
+multicast into a selector pipeline using the shared view twice.
+
+**Deviations:** connection/notifier observers are raw kernel subscribers
+(safe-boundary handler-throw edges not claimed); replay time windows and
+scheduler arguments deferred until clocks land.
 
 ## Interpretation of export parity
 

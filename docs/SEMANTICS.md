@@ -255,6 +255,28 @@ supports the size window only until clocks land (M13/M14); subject methods do
 not participate in the deprecated synchronous error context; subjects are
 mutable hub records and therefore not frozen.
 
+## Sharing topology (M11)
+
+- `share` holds one connection per shared-source application: the connector
+  Subject is created on first demand, subscribers attach to it before the
+  source is connected, and reset behavior is policy data (`resetOnError`,
+  `resetOnComplete`, `resetOnRefCountZero` — each `true`/`false`/notifier
+  factory). A pending reset notifier is cancelled when a subscriber arrives
+  before it fires.
+- `shareReplay` is `share` with a replay connector, `resetOnComplete: false`,
+  and ref-count reset only when requested — so a completed shareReplay serves
+  late subscribers from the buffer without re-running the source.
+- `connectable` subscribers attach to the connector Subject and receive
+  nothing until `connect()`, which is idempotent while the connection is
+  open; disconnecting swaps in a fresh Subject by default.
+- `connect` multicasts the source through a per-subscription connector for
+  the selector's pipeline, subscribing the selector result before connecting
+  the source.
+
+M11 deviations: connection and reset-notifier observers use raw kernel
+subscribers rather than the safe consumer boundary (handler-throw edge cases
+are not claimed); replay time windows remain deferred until clocks land.
+
 ## Algebraic structures (F8)
 
 Several kernel structures are named algebras. Every law below is executable:
@@ -299,4 +321,4 @@ policy's algebra separately.
 
 ## Differential evidence
 
-Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contained 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies; the F-work added kernel-operator suites, M06 added 21 selection/gating traces, M07 added 15 flattening-machine traces, M08 added 17 flattening-operator traces, M09 added 19 coordination traces, and M10 adds 10 subject traces for a current total of 148 differential tests.
+Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contained 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies; the F-work added kernel-operator suites, M06 added 21 selection/gating traces, M07 added 15 flattening-machine traces, M08 added 17 flattening-operator traces, M09 added 19 coordination traces, M10 added 10 subject traces, and M11 adds 11 sharing traces for a current total of 159 differential tests.

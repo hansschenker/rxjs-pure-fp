@@ -580,6 +580,18 @@ Two mechanisms fell out of the differential work: `setSubscribePreflight`, the f
 
 ---
 
+# M11 — Sharing Topology
+
+Session 3 opens with explicit sharing over the M10 hub: `share` = one connection + reset behavior as policy data (`resetOnError` / `resetOnComplete` / `resetOnRefCountZero`, each boolean or notifier-factory, with pending resets cancelled on resubscribe); `shareReplay` = `share` with a replay connector and no reset on completion; `connectable` = a branded callable record with an idempotent `connect()`; `connect` = per-subscription multicast for a selector pipeline. The todo-mvu example now uses a real `share()` instead of its manual steps-Subject.
+
+# M11 verification
+
+- **93 / 93 unit tests** and **159 / 159 differential tests** pass (11 new M11 traces);
+- architecture gate: **73 source files**; distribution check: **146 emitted files**;
+- RxJS root export parity: **73 / 175 = 41.7%**; unexpected exports: **0**.
+
+---
+
 # Root parity after M10
 
 Implemented RxJS 7.8.2 root exports:
@@ -637,9 +649,12 @@ Coordination
 Subjects
   Subject     BehaviorSubject   ReplaySubject
   AsyncSubject                  ObjectUnsubscribedError
+
+Sharing
+  share       shareReplay       connectable   connect
 ```
 
-That is **69 / 175 = 39.4%** of the root export names.
+That is **73 / 175 = 41.7%** of the root export names.
 
 ## Deliberate functional extensions
 
@@ -729,8 +744,8 @@ merge/concat as flattening algebra; combineLatest/zip/race/forkJoin/withLatestFr
 ### M10 — Functional Subjects ✅
 One multicast hub + current-value/replay/last-on-complete policies; callable hub records; synchronous ObjectUnsubscribedError preflight.
 
-### M11 — Sharing Topology
-connectable/connect/share/shareReplay.
+### M11 — Sharing Topology ✅
+share/shareReplay with reset policies as data; connectable/connect explicit connections.
 
 ### M12 — Error & Resubscription
 catchError/retry/repeat/finalize families.
@@ -766,11 +781,11 @@ final behavioral and export parity matrix.
 ```text
 Session 1  M01-M05   ✅ kernel + first-order operator policies
 Session 2  M06-M10   ✅ gating + higher-order + flattening + coordination + Subjects
-Session 3  M11-M15      sharing + recovery + scheduling + time + boundaries
+Session 3  M11-M15   ⏳ sharing ✅ + recovery + scheduling + time + boundaries
 Session 4  M16-M20      platform + testing + remaining surface + certification
 ```
 
-Sessions 1 and 2 are complete. The next working session starts at **M11 — Sharing Topology**.
+Sessions 1 and 2 are complete; Session 3 is in progress (M11 ✅). Next is **M12 — Error & Resubscription**.
 
 ---
 
