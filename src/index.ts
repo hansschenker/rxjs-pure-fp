@@ -66,6 +66,13 @@ export {
 export { createSubscription } from './kernel/subscription.ts';
 export { EMPTY } from './kernel/creation/empty.ts';
 export { of } from './kernel/creation/of.ts';
+export { throwError } from './kernel/creation/throw-error.ts';
+export { catchError } from './kernel/operators/catch-error.ts';
+export { finalize } from './kernel/operators/finalize.ts';
+export { repeat } from './kernel/operators/repeat.ts';
+export { retry } from './kernel/operators/retry.ts';
+export type { RepeatConfig } from './kernel/operators/repeat.ts';
+export type { RetryConfig } from './kernel/operators/retry.ts';
 export { defaultIfEmpty, throwIfEmpty } from './kernel/operators/presence.ts';
 export { distinct } from './kernel/operators/distinct.ts';
 export { distinctUntilChanged } from './kernel/operators/distinct-until-changed.ts';

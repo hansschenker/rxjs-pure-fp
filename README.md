@@ -592,6 +592,17 @@ Session 3 opens with explicit sharing over the M10 hub: `share` = one connection
 
 ---
 
+# M12 — Error & Resubscription
+
+Recovery as resubscription policy: `catchError` (selector gets the error *and* the caught observable; synchronous-error switching preserved), `retry` (`count`, `resetOnSuccess`, notifier-factory delays — a delay notifier completing without a value completes the result, an RxJS quirk kept), `repeat` (bounded re-execution with per-attempt teardown), `finalize` (once, after source teardown), and `throwError` (per-subscription error factories). `retry(0)` is the identity operator; `repeat(0)` is `EMPTY`. Numeric delays await the M14 timer surface.
+
+# M12 verification
+
+- **95 / 95 unit** and **172 / 172 differential tests** pass (13 new M12 traces);
+- RxJS root export parity: **78 / 175 = 44.6%**; unexpected exports: **0**.
+
+---
+
 # Root parity after M10
 
 Implemented RxJS 7.8.2 root exports:
@@ -652,9 +663,12 @@ Subjects
 
 Sharing
   share       shareReplay       connectable   connect
+
+Error / resubscription
+  catchError  retry   repeat    finalize      throwError
 ```
 
-That is **73 / 175 = 41.7%** of the root export names.
+That is **78 / 175 = 44.6%** of the root export names.
 
 ## Deliberate functional extensions
 
@@ -747,8 +761,8 @@ One multicast hub + current-value/replay/last-on-complete policies; callable hub
 ### M11 — Sharing Topology ✅
 share/shareReplay with reset policies as data; connectable/connect explicit connections.
 
-### M12 — Error & Resubscription
-catchError/retry/repeat/finalize families.
+### M12 — Error & Resubscription ✅
+catchError/retry/repeat/finalize + throwError; resubscription with notifier-factory delay policies.
 
 ### M13 — Scheduler Kernel
 Functional clock/queue/request/cancel/flush policies.
@@ -781,11 +795,11 @@ final behavioral and export parity matrix.
 ```text
 Session 1  M01-M05   ✅ kernel + first-order operator policies
 Session 2  M06-M10   ✅ gating + higher-order + flattening + coordination + Subjects
-Session 3  M11-M15   ⏳ sharing ✅ + recovery + scheduling + time + boundaries
+Session 3  M11-M15   ⏳ sharing ✅ + recovery ✅ + scheduling + time + boundaries
 Session 4  M16-M20      platform + testing + remaining surface + certification
 ```
 
-Sessions 1 and 2 are complete; Session 3 is in progress (M11 ✅). Next is **M12 — Error & Resubscription**.
+Sessions 1 and 2 are complete; Session 3 is in progress (M11 ✅ M12 ✅). Next is **M13 — Scheduler Kernel**.
 
 ---
 

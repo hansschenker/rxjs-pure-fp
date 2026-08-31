@@ -277,6 +277,29 @@ M11 deviations: connection and reset-notifier observers use raw kernel
 subscribers rather than the safe consumer boundary (handler-throw edge cases
 are not claimed); replay time windows remain deferred until clocks land.
 
+## Error & resubscription (M12)
+
+- `finalize` registers its callback after connecting the source, so it runs
+  exactly once after the source's own teardown on complete, error, or
+  unsubscribe.
+- `catchError` hands the selector the error and the caught observable
+  (retry-forever composition); selector throws become downstream errors; a
+  synchronously erroring source switches to the handled observable after
+  connect returns.
+- `retry` counts errors (`resetOnSuccess` zeroes the count on any value) and
+  re-errors when exhausted; `retry(0)` is the identity operator. `repeat`
+  counts completions; `repeat(0)` is `EMPTY`. Each attempt tears the previous
+  subscription down before resubscribing.
+- Delay policies accept notifier factories: resubscription happens on the
+  first notifier value, and a notifier completing without a value completes
+  the result (RxJS quirk, preserved).
+- `throwError` treats a function argument as an error factory invoked per
+  subscription.
+
+M12 scope notes: numeric delays await the timer surface (M14); deprecated
+`retryWhen`/`repeatWhen`/`onErrorResumeNext` and the scheduler argument of
+`throwError` are deferred to the remaining-surface milestone.
+
 ## Algebraic structures (F8)
 
 Several kernel structures are named algebras. Every law below is executable:
@@ -321,4 +344,4 @@ policy's algebra separately.
 
 ## Differential evidence
 
-Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contained 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies; the F-work added kernel-operator suites, M06 added 21 selection/gating traces, M07 added 15 flattening-machine traces, M08 added 17 flattening-operator traces, M09 added 19 coordination traces, M10 added 10 subject traces, and M11 adds 11 sharing traces for a current total of 159 differential tests.
+Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contained 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies; the F-work added kernel-operator suites, M06 added 21 selection/gating traces, M07 added 15 flattening-machine traces, M08 added 17 flattening-operator traces, M09 added 19 coordination traces, M10 added 10 subject traces, M11 added 11 sharing traces, and M12 adds 13 error/resubscription traces for a current total of 172 differential tests.

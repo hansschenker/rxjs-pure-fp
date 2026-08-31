@@ -1,6 +1,6 @@
 # RxJS 7.8.2 Parity
 
-## Current milestone: M11 — Sharing Topology (Session 3 in progress)
+## Current milestone: M12 — Error & Resubscription (Session 3 in progress)
 
 Session 1 (M01-M05) is complete; Session 2 is in progress. Between M05 and
 M06, the F1-F8 functional-deepening work (docs/FP-ROADMAP.md) restructured the
@@ -8,17 +8,17 @@ source into `src/kernel/**` and `src/compat/**` without changing behavioral
 scope. M07 introduced the shared flattening machine; M08 wrapped it into the
 public flattening family; M09 adds the multi-source coordination surface.
 
-| Dimension | M11 status |
+| Dimension | M12 status |
 | --- | --- |
 | Behavioral oracle | pinned `rxjs@7.8.2` |
-| Architecture gate | passes across 73 TypeScript source files |
-| Unit tests | 93 / 93 |
-| Differential tests | 159 / 159 total |
-| New M11 differential traces | 11 |
-| RxJS root exports implemented | 73 / 175 = 41.7% |
+| Architecture gate | passes across 78 TypeScript source files |
+| Unit tests | 95 / 95 |
+| Differential tests | 172 / 172 total |
+| New M12 differential traces | 13 |
+| RxJS root exports implemented | 78 / 175 = 44.6% |
 | Functional root extensions | 16 |
 | Unexpected root exports | 0 |
-| Distribution architecture | passes across 146 emitted JavaScript files |
+| Distribution architecture | passes across 156 emitted JavaScript files |
 
 ## Root parity exports through M06
 
@@ -99,6 +99,14 @@ public flattening family; M09 adds the multi-source coordination surface.
 - `ReplaySubject`
 - `AsyncSubject`
 - `ObjectUnsubscribedError`
+
+### Error & resubscription
+
+- `catchError`
+- `retry`
+- `repeat`
+- `finalize`
+- `throwError`
 
 ### Sharing
 
@@ -422,8 +430,25 @@ hub records (the documented sharing topology) and are not frozen.
 - M09: 19 coordination traces
 - M10: 10 subject traces
 - M11: 11 sharing traces
+- M12: 13 error/resubscription traces
 
-Total: **159 / 159** differential tests.
+Total: **172 / 172** differential tests.
+
+## M12 certified scope
+
+`finalize`: once-only callback after source teardown on complete/error/
+unsubscribe. `catchError`: recovery, retry-forever via the caught argument,
+selector throws as downstream errors, synchronous-error switching. `retry`:
+count exhaustion re-erroring, recovery mid-sequence, `resetOnSuccess`,
+notifier-factory delays (fire → resubscribe with teardown ordering; notifier
+completion → result completion), `retry(0)` identity. `repeat`: bounded
+repetition with per-attempt teardown, `repeat(0)` as EMPTY, notifier-factory
+delays with repeat counts. `throwError`: per-subscription factory invocation
+and plain-value form.
+
+**Deviations/deferrals:** numeric delays await M14 timers;
+`retryWhen`/`repeatWhen`/`onErrorResumeNext` and `throwError`'s scheduler
+argument deferred to the remaining-surface milestone.
 
 ## M11 certified scope
 

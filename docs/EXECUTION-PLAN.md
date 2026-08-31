@@ -7,7 +7,7 @@ M00 is the project foundation. The 20 runtime milestones are grouped into four f
 ```text
 Session 1  M01-M05   ✅ complete
 Session 2  M06-M10   ✅ complete
-Session 3  M11-M15   in progress — M11 ✅
+Session 3  M11-M15   in progress — M11 ✅ M12 ✅
 Session 4  M16-M20
 ```
 
@@ -111,7 +111,7 @@ M10 closes Session 2 by proving that shared topology can also be expressed from 
 # Session 3 — M11-M15
 
 - **M11 Sharing topology ✅** — connectable/connect/share/shareReplay.
-- **M12 Error & resubscription** — catchError/retry/repeat/finalize families.
+- **M12 Error & resubscription ✅** — catchError/retry/repeat/finalize + throwError.
 - **M13 Scheduler kernel** — functional queue/clock/request/cancel/flush policies.
 - **M14 Temporal operators** — timer/interval/delay/debounce/audit/throttle/sample/timeout.
 - **M15 Boundary & collection** — buffer/window/groupBy families.
