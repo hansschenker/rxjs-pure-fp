@@ -7,12 +7,12 @@ import {
   map as rxMap,
   of as rxOf,
 } from 'rxjs';
-import { subscribe } from '../../src/core/observable.ts';
-import { pipeValue } from '../../src/core/pipe.ts';
-import { createSubscriber } from '../../src/core/sink.ts';
-import { of } from '../../src/creation/of.ts';
-import { filter } from '../../src/operators/filter.ts';
-import { map } from '../../src/operators/map.ts';
+import { subscribe } from '../../src/compat/observable.ts';
+import { pipeValue } from '../../src/kernel/pipe.ts';
+import { createSubscriber } from '../../src/kernel/sink.ts';
+import { of } from '../../src/kernel/creation/of.ts';
+import { filter } from '../../src/compat/filter.ts';
+import { map } from '../../src/compat/map.ts';
 
 const adapters = {
   rxjs: {

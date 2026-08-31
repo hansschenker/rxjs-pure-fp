@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { config } from '../../src/core/config.ts';
-import { Subscriber, createSafeSubscriber, createSubscriber } from '../../src/core/sink.ts';
+import { config } from '../../src/compat/config.ts';
+import { Subscriber, createSafeSubscriber } from '../../src/compat/sink.ts';
+import { createSubscriber } from '../../src/compat/sink.ts';
 
 test('M02 createSubscriber composes notification state with the M01 lifecycle', () => {
   const events = [];

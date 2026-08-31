@@ -1,13 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import {
-  Observable,
-  createObservable,
-  subscribe,
-} from '../../src/core/observable.ts';
-import { pipe, pipeValue } from '../../src/core/pipe.ts';
-import { createSubscriber } from '../../src/core/sink.ts';
+import { Observable, subscribe } from '../../src/compat/observable.ts';
+import { createObservable } from '../../src/kernel/observable.ts';
+import { pipe, pipeValue } from '../../src/kernel/pipe.ts';
+import { createSubscriber } from '../../src/kernel/sink.ts';
 
 test('M03 Observable construction is lazy and each subscription executes independently', () => {
   let executions = 0;
@@ -99,16 +96,25 @@ test('M03 standalone subscribe preserves an existing Subscriber identity', () =>
   assert.deepEqual(events, [1, 'complete']);
 });
 
-test('M03 initializer this is the functional Observable representation', () => {
-  let source;
-  let sameThis = false;
-  source = createObservable(function (subscriber) {
-    sameThis = this === source;
+test('F1 compat Observable binds initializer this; kernel createObservable does not', () => {
+  let paritySource;
+  let parityThis = false;
+  paritySource = Observable(function (subscriber) {
+    parityThis = this === paritySource;
     subscriber.complete();
   });
 
-  subscribe()(source);
-  assert.equal(sameThis, true);
+  subscribe()(paritySource);
+  assert.equal(parityThis, true);
+
+  let kernelThis;
+  const kernelSource = createObservable(function (subscriber) {
+    kernelThis = this;
+    subscriber.complete();
+  });
+
+  subscribe()(kernelSource);
+  assert.equal(kernelThis, undefined);
 });
 
 test('M03 Observable parity name is functional and retains deprecated create', () => {

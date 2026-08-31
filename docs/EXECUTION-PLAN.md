@@ -6,7 +6,7 @@ M00 is the project foundation. The 20 runtime milestones are grouped into four f
 
 ```text
 Session 1  M01-M05   ✅ complete
-Session 2  M06-M10   next
+Session 2  M06-M10   ✅ complete
 Session 3  M11-M15
 Session 4  M16-M20
 ```
@@ -40,7 +40,7 @@ First-order operator variation is expressed primarily through per-subscription c
 
 # Session 2 — M06-M10
 
-## M06 — Selection & Gating
+## M06 — Selection & Gating ✅
 
 Implement the selection families on the established first-order kernel:
 
@@ -51,7 +51,7 @@ Implement the selection families on the established first-order kernel:
 
 The main concern is no longer transformation but **when participation ends or begins**.
 
-## M07 — Higher-Order Kernel
+## M07 — Higher-Order Kernel ✅
 
 Introduce reusable machinery for source values that create inner Observables:
 
@@ -68,7 +68,7 @@ inner Subscription lifecycle
 
 Track active inner identity, completion, cancellation, and outer/inner termination interaction.
 
-## M08 — Flattening Policies
+## M08 — Flattening Policies ✅
 
 Express the four canonical concurrency policies over M07:
 
@@ -81,7 +81,7 @@ exhaustMap  ignore new while busy
 
 Also recover the corresponding `*All` and related flattening exports where appropriate.
 
-## M09 — Multi-Source Coordination
+## M09 — Multi-Source Coordination ✅
 
 Implement source coordination and joining:
 
@@ -95,7 +95,7 @@ Implement source coordination and joining:
 
 Termination and subscription ordering are first-class test dimensions.
 
-## M10 — Functional Subjects
+## M10 — Functional Subjects ✅
 
 Implement multicast participation without inheritance:
 

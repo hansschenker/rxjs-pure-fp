@@ -1,9 +1,20 @@
 {
   "root": [
+    "createAsyncSubject",
+    "createBehaviorSubject",
     "createObservable",
+    "createReplaySubject",
+    "createSubject",
     "createSubscriber",
     "createSubscription",
+    "emitNone",
+    "emitOne",
+    "filterSink",
+    "fuseSinkTransformers",
+    "liftSinkTransformer",
+    "mapSink",
     "pipeValue",
+    "statefulOperator",
     "subscribe"
   ]
 }

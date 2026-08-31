@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { Subscription as RxSubscription } from 'rxjs';
-import { createSubscription } from '../../src/core/subscription.ts';
+import { createSubscription } from '../../src/kernel/subscription.ts';
 
 const adapters = {
   rxjs: {

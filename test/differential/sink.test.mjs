@@ -2,8 +2,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { Subscriber as RxSubscriber, config as rxConfig } from 'rxjs';
-import { config as pureConfig } from '../../src/core/config.ts';
-import { Subscriber, createSubscriber } from '../../src/core/sink.ts';
+import { config as pureConfig } from '../../src/compat/config.ts';
+import { Subscriber } from '../../src/compat/sink.ts';
+import { createSubscriber } from '../../src/compat/sink.ts';
 
 const adapters = {
   rxjs: {

@@ -12,16 +12,17 @@ import {
   scan as rxScan,
   tap as rxTap,
 } from 'rxjs';
-import { createObservable, subscribe } from '../../src/core/observable.ts';
-import { pipeValue } from '../../src/core/pipe.ts';
-import { of } from '../../src/creation/of.ts';
-import { distinct } from '../../src/operators/distinct.ts';
-import { distinctUntilChanged } from '../../src/operators/distinct-until-changed.ts';
-import { distinctUntilKeyChanged } from '../../src/operators/distinct-until-key-changed.ts';
-import { pairwise } from '../../src/operators/pairwise.ts';
-import { reduce } from '../../src/operators/reduce.ts';
-import { scan } from '../../src/operators/scan.ts';
-import { tap } from '../../src/operators/tap.ts';
+import { subscribe } from '../../src/compat/observable.ts';
+import { createObservable } from '../../src/kernel/observable.ts';
+import { pipeValue } from '../../src/kernel/pipe.ts';
+import { of } from '../../src/kernel/creation/of.ts';
+import { distinct } from '../../src/kernel/operators/distinct.ts';
+import { distinctUntilChanged } from '../../src/kernel/operators/distinct-until-changed.ts';
+import { distinctUntilKeyChanged } from '../../src/kernel/operators/distinct-until-key-changed.ts';
+import { pairwise } from '../../src/kernel/operators/pairwise.ts';
+import { reduce } from '../../src/kernel/operators/reduce.ts';
+import { scan } from '../../src/kernel/operators/scan.ts';
+import { tap } from '../../src/kernel/operators/tap.ts';
 
 const adapters = {
   rxjs: {

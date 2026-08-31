@@ -7,14 +7,18 @@ import {
   Subscription as RxSubscription,
   pipe as rxPipe,
 } from 'rxjs';
-import { createObservable, subscribe } from '../../src/core/observable.ts';
-import { pipe } from '../../src/core/pipe.ts';
-import { createSubscriber } from '../../src/core/sink.ts';
-import { createSubscription } from '../../src/core/subscription.ts';
+import { Observable, subscribe } from '../../src/compat/observable.ts';
+import { createObservable } from '../../src/kernel/observable.ts';
+import { pipe } from '../../src/kernel/pipe.ts';
+import { createSubscriber } from '../../src/kernel/sink.ts';
+import { createSubscription } from '../../src/kernel/subscription.ts';
 
 const adapters = {
   rxjs: {
     create(initializer) {
+      return new RxObservable(initializer);
+    },
+    createParity(initializer) {
       return new RxObservable(initializer);
     },
     subscribe(observer) {
@@ -30,6 +34,7 @@ const adapters = {
   },
   pureFp: {
     create: createObservable,
+    createParity: Observable,
     subscribe,
     createSubscriber,
     createSubscription,
@@ -141,10 +146,10 @@ const returnedSubscriptionTrace = ({ create, subscribe, createSubscription }) =>
   };
 };
 
-const initializerThisTrace = ({ create, subscribe }) => {
+const initializerThisTrace = ({ createParity, subscribe }) => {
   let source;
   let sameThis = false;
-  source = create(function (subscriber) {
+  source = createParity(function (subscriber) {
     sameThis = this === source;
     subscriber.complete();
   });

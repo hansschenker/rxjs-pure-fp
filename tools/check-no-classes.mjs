@@ -10,12 +10,14 @@ const allowedConstructors = new Set([
   'WeakMap', 'WeakSet', 'WebSocket'
 ]);
 
+const kernelRoot = path.join(sourceRoot, 'kernel') + path.sep;
 const files = walk(sourceRoot).filter((file) => file.endsWith('.ts'));
 const violations = [];
 
 for (const file of files) {
   const source = fs.readFileSync(file, 'utf8');
   const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const inKernel = file.startsWith(kernelRoot);
 
   visit(sourceFile, (node) => {
     if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) {
@@ -38,6 +40,62 @@ for (const file of files) {
       const name = node.expression.text;
       if (!allowedConstructors.has(name)) {
         report(file, sourceFile, node, `project-defined constructor architecture is forbidden: new ${name}(...)`);
+      }
+    }
+
+    // F1/F4 kernel purity rules (docs/FP-ROADMAP.md).
+    if (inKernel) {
+      if (
+        ts.isPropertyAccessExpression(node) &&
+        ts.isIdentifier(node.expression) &&
+        node.expression.text === 'Object' &&
+        (node.name.text === 'defineProperty' || node.name.text === 'defineProperties')
+      ) {
+        report(file, sourceFile, node, 'kernel purity: Object.defineProperty/defineProperties is forbidden');
+      }
+
+      if (node.kind === ts.SyntaxKind.ThisKeyword) {
+        report(file, sourceFile, node, 'kernel purity: this is forbidden');
+      }
+
+      if (ts.isParameter(node) && ts.isIdentifier(node.name) && node.name.text === 'this') {
+        report(file, sourceFile, node, 'kernel purity: this-parameter types are forbidden');
+      }
+
+      if (ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'Reflect') {
+        report(file, sourceFile, node, 'kernel purity: Reflect is forbidden');
+      }
+
+      if (
+        ts.isVariableStatement(node) &&
+        ts.isSourceFile(node.parent) &&
+        !(node.declarationList.flags & ts.NodeFlags.Const)
+      ) {
+        report(file, sourceFile, node, 'kernel purity: module-scope let/var is forbidden');
+      }
+
+      if (
+        ts.isImportDeclaration(node) &&
+        ts.isStringLiteral(node.moduleSpecifier) &&
+        node.moduleSpecifier.text.includes('/compat/')
+      ) {
+        report(file, sourceFile, node, 'kernel purity: kernel must not import compat');
+      }
+
+      // F7: method-syntax type members are bivariant; property syntax gets
+      // full strictFunctionTypes variance checking.
+      if (ts.isMethodSignature(node)) {
+        report(file, sourceFile, node, 'kernel purity: method-syntax type members are forbidden (use property syntax)');
+      }
+
+      // F6: host timers are the deferral edge owned by runtime.ts; everything
+      // else must go through a RuntimeEnv's `defer`.
+      if (
+        path.basename(file) !== 'runtime.ts' &&
+        ts.isIdentifier(node) &&
+        ['setTimeout', 'setInterval', 'setImmediate', 'queueMicrotask'].includes(node.text)
+      ) {
+        report(file, sourceFile, node, 'kernel purity: host timer access is forbidden outside runtime.ts');
       }
     }
   });

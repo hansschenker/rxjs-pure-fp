@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
+import { Subscription, UnsubscriptionError } from '../../src/compat/subscription.ts';
 import {
   EMPTY_SUBSCRIPTION,
-  Subscription,
-  UnsubscriptionError,
   createSubscription,
   isSubscription,
-} from '../../src/core/subscription.ts';
+} from '../../src/kernel/subscription.ts';
 
 test('M01 createSubscription owns lifecycle state in a closure', () => {
   const events = [];
