@@ -1,14 +1,20 @@
 # Execution Plan
 
-## Four-session runtime cadence
+## Session cadence
 
-M00 is the project foundation. The 20 runtime milestones are grouped into four five-milestone sessions:
+M00 is the project foundation. Sessions 1-3 carried the runtime kernel through
+M14 (Session 3 re-scoped to close at M14). The remaining **74 RxJS 7.8.2 root
+exports** are planned as four feature sessions of 18 / 18 / 19 / 19, one
+re-scoped milestone each, with the M19/M20 gates closing the final session:
 
 ```text
 Session 1  M01-M05   ✅ complete
 Session 2  M06-M10   ✅ complete
-Session 3  M11-M15   in progress — M11 ✅ M12 ✅ M13 ✅ M14 ✅
-Session 4  M16-M20
+Session 3  M11-M14   ✅ complete (M15 moved to Session 4)
+Session 4  M15       18 features   boundary & collection      → 119/175 (68.0%)
+Session 5  M16       18 features   creation & interop         → 137/175 (78.3%)
+Session 6  M17       19 features   materialization & op tail  → 156/175 (89.1%)
+Session 7  M18-M20   19 features   compat closure + gates     → 175/175 (100%)
 ```
 
 # Session 1 — M01-M05 ✅
@@ -108,19 +114,81 @@ AsyncSubject     hub + last-on-complete policy
 
 M10 closes Session 2 by proving that shared topology can also be expressed from functional state/policies.
 
-# Session 3 — M11-M15
+# Session 3 — M11-M14 ✅
 
 - **M11 Sharing topology ✅** — connectable/connect/share/shareReplay.
 - **M12 Error & resubscription ✅** — catchError/retry/repeat/finalize + throwError.
 - **M13 Scheduler kernel ✅** — timerHost edge + action machine + async/queue/asap policies; observeOn/subscribeOn.
 - **M14 Temporal operators ✅** — timer/interval + delay/delayWhen, debounce/audit/throttle/sample and their *Time forms, timeout/timeoutWith/TimeoutError; retry/repeat numeric delays wired.
-- **M15 Boundary & collection** — buffer/window/groupBy families.
 
-# Session 4 — M16-M20
+# Sessions 4-7 — the remaining 74 root exports
 
-- **M16 Platform sources** — events/callbacks/ajax/fetch/WebSocket.
-- **M17 Testing runtime** — virtual time/TestScheduler-equivalent behavior.
-- **M18 Remaining 7.8.2 surface** — close uncommon/deprecated public gaps.
+Each session is one re-scoped milestone with an exact feature list; every name
+below is a missing `rxjs@7.8.2` root export from `feature-parity-list.md`.
+
+## Session 4 — M15 Boundary & Collection (18)
+
+Value boundaries over Subjects + timers, and reduce-style aggregation:
+
+```text
+buffer   bufferCount   bufferTime   bufferToggle   bufferWhen
+window   windowCount   windowTime   windowToggle   windowWhen
+groupBy  partition
+count    max   min   every   find   findIndex
+```
+
+All prerequisites landed: window/groupBy emit inner Subjects (M10),
+bufferTime/windowTime ride the M14 timer surface.
+
+## Session 5 — M16 Creation & Interop (18)
+
+`from`/`innerFrom` ObservableInput conversion is the session's core: it also
+retires the "functional Observables only" deferrals recorded across
+M05-M14 (flattening projections, notifiers, duration selectors, `with`
+factories). Promise-consuming/producing surfaces add `Promise` to the
+architecture gate's allowed platform constructors.
+
+```text
+from   fromEvent   fromEventPattern   bindCallback   bindNodeCallback
+defer  iif   range   generate   using
+empty  never   NEVER   pairs
+isObservable   observable
+firstValueFrom lastValueFrom
+```
+
+## Session 6 — M17 Materialization & Operator Tail (19)
+
+Notifications as data, stream metadata, and the deprecated operator algebra
+tail (closing the M12 deferral names):
+
+```text
+materialize   dematerialize   Notification   NotificationKind
+timeInterval  timestamp
+startWith     endWith
+ignoreElements   mapTo   pluck
+toArray       isEmpty   sequenceEqual
+retryWhen     repeatWhen   onErrorResumeNext   onErrorResumeNextWith
+exhaust
+```
+
+## Session 7 — M18 Compat Closure + M19/M20 gates (19)
+
+Deprecated multicast surface, the remaining scheduler shapes (an rAF edge
+joins `timerHost` in runtime.ts; virtual time reuses the M13 action machine),
+join-all aliases, and the package-shape artifacts:
+
+```text
+ConnectableObservable   multicast   refCount
+publish   publishBehavior   publishLast   publishReplay
+combineAll   combineLatestAll   zipAll
+Scheduler   scheduled
+animationFrame   animationFrames   animationFrameScheduler
+VirtualAction   VirtualTimeScheduler
+__esModule   default
+```
+
+Then the closing gates, which add no export names:
+
 - **M19 Package parity** — strict subpath/declarations/ESM/CJS compatibility.
 - **M20 Differential certification** — final behavioral/export matrix.
 

@@ -846,17 +846,17 @@ timerHost edge + one action machine; async/queue/asap as frozen policy records; 
 ### M14 — Temporal Operators ✅
 timer/interval as the time primitive; delay/delayWhen, debounce/audit/throttle/sample families as timer algebra + notifier handshakes; timeout/timeoutWith/TimeoutError; retry/repeat numeric delays.
 
-### M15 — Boundary & Collection
-buffer/window/groupBy families.
+### M15 — Boundary & Collection (Session 4, 18 features)
+buffer/window families, groupBy/partition, count/max/min/every/find/findIndex.
 
-### M16 — Platform Sources
-events/callbacks/ajax/fetch/WebSocket.
+### M16 — Creation & Interop (Session 5, 18 features)
+from/innerFrom ObservableInput conversion (retiring the functional-Observables-only deferrals), fromEvent/fromEventPattern, bindCallback/bindNodeCallback, defer/iif/range/generate/using, empty/never/NEVER/pairs, isObservable/observable, firstValueFrom/lastValueFrom.
 
-### M17 — Testing Runtime
-virtual time and TestScheduler-equivalent capability.
+### M17 — Materialization & Operator Tail (Session 6, 19 features)
+materialize/dematerialize/Notification/NotificationKind, timeInterval/timestamp, startWith/endWith, ignoreElements/mapTo/pluck, toArray/isEmpty/sequenceEqual, retryWhen/repeatWhen/onErrorResumeNext(With), exhaust.
 
-### M18 — Remaining 7.8.2 Surface
-close uncommon and deprecated-but-public gaps.
+### M18 — Compat Closure (Session 7, 19 features)
+ConnectableObservable/multicast/publish family/refCount, combineAll/combineLatestAll/zipAll, Scheduler/scheduled, animationFrame(s)/animationFrameScheduler, VirtualAction/VirtualTimeScheduler, package-shape artifacts.
 
 ### M19 — Package Parity
 strict subpath/declaration/ESM/CJS compatibility.
@@ -866,16 +866,23 @@ final behavioral and export parity matrix.
 
 ---
 
-# Four implementation sessions
+# Implementation sessions
 
 ```text
 Session 1  M01-M05   ✅ kernel + first-order operator policies
 Session 2  M06-M10   ✅ gating + higher-order + flattening + coordination + Subjects
-Session 3  M11-M15   ⏳ sharing ✅ + recovery ✅ + scheduling ✅ + time ✅ + boundaries
-Session 4  M16-M20      platform + testing + remaining surface + certification
+Session 3  M11-M14   ✅ sharing + recovery + scheduling + time
+Session 4  M15       18 features  boundary & collection      → 119/175 (68.0%)
+Session 5  M16       18 features  creation & interop         → 137/175 (78.3%)
+Session 6  M17       19 features  materialization & op tail  → 156/175 (89.1%)
+Session 7  M18-M20   19 features  compat closure + gates     → 175/175 (100%)
 ```
 
-Sessions 1 and 2 are complete; Session 3 is in progress (M11 ✅ M12 ✅ M13 ✅ M14 ✅). Next is **M15 — Boundary & Collection**.
+Sessions 1-3 are complete (Session 3 re-scoped to close at M14). The
+remaining **74 root exports** are planned as four exact-count feature
+sessions — the per-name allocation lives in `docs/EXECUTION-PLAN.md` and the
+current per-export status in `feature-parity-list.md`. Next is **Session 4:
+M15 — Boundary & Collection**.
 
 ---
 
