@@ -11,7 +11,7 @@ re-scoped milestone each, with the M19/M20 gates closing the final session:
 Session 1  M01-M05   ✅ complete
 Session 2  M06-M10   ✅ complete
 Session 3  M11-M14   ✅ complete (M15 moved to Session 4)
-Session 4  M15       18 features   boundary & collection      → 119/175 (68.0%)
+Session 4  M15       ✅ complete   boundary & collection      → 119/175 (68.0%)
 Session 5  M16       18 features   creation & interop         → 137/175 (78.3%)
 Session 6  M17       19 features   materialization & op tail  → 156/175 (89.1%)
 Session 7  M18-M20   19 features   compat closure + gates     → 175/175 (100%)
@@ -126,7 +126,7 @@ M10 closes Session 2 by proving that shared topology can also be expressed from 
 Each session is one re-scoped milestone with an exact feature list; every name
 below is a missing `rxjs@7.8.2` root export from `feature-parity-list.md`.
 
-## Session 4 — M15 Boundary & Collection (18)
+## Session 4 — M15 Boundary & Collection (18) ✅
 
 Value boundaries over Subjects + timers, and reduce-style aggregation:
 
@@ -137,8 +137,13 @@ groupBy  partition
 count    max   min   every   find   findIndex
 ```
 
-All prerequisites landed: window/groupBy emit inner Subjects (M10),
-bufferTime/windowTime ride the M14 timer surface.
+Landed as planned: window/groupBy emit inner Subjects (M10),
+bufferTime/windowTime ride the M14 timer surface via a repeating
+`executeSchedule` variant, and groupBy's downstream release is
+reference-counted (the functional replacement for RxJS's
+`shouldUnsubscribe` guard). Notifiers, closing selectors, and group
+durations remain functional-Observables-only until M16's `ObservableInput`
+conversion.
 
 ## Session 5 — M16 Creation & Interop (18)
 

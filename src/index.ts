@@ -149,6 +149,26 @@ export { takeLast } from './kernel/operators/take-last.ts';
 export { takeUntil } from './kernel/operators/take-until.ts';
 export { takeWhile } from './kernel/operators/take-while.ts';
 export { tap } from './kernel/operators/tap.ts';
+export { buffer } from './kernel/operators/buffer.ts';
+export { bufferCount } from './kernel/operators/buffer-count.ts';
+export { bufferTime } from './kernel/operators/buffer-time.ts';
+export { bufferToggle } from './kernel/operators/buffer-toggle.ts';
+export { bufferWhen } from './kernel/operators/buffer-when.ts';
+export { window } from './kernel/operators/window.ts';
+export { windowCount } from './kernel/operators/window-count.ts';
+export { windowTime } from './kernel/operators/window-time.ts';
+export { windowToggle } from './kernel/operators/window-toggle.ts';
+export { windowWhen } from './kernel/operators/window-when.ts';
+export { count } from './kernel/operators/count.ts';
+export { max } from './kernel/operators/max.ts';
+export { min } from './kernel/operators/min.ts';
+export {
+  every,
+  find,
+  findIndex,
+  groupBy,
+  partition,
+} from './compat/collection.ts';
 export {
   filterSink,
   fuseSinkTransformers,
@@ -186,6 +206,10 @@ export type {
   UnsubscriptionError as UnsubscriptionErrorLike,
 } from './kernel/subscription.ts';
 export type { TapObserver } from './kernel/operators/tap.ts';
+export type {
+  GroupByOptions,
+  GroupedObservable,
+} from './kernel/operators/group-by.ts';
 export type {
   NotificationSink,
   SinkTransformer,

@@ -2,9 +2,9 @@
 
 Root export parity of `rxjs-pure-fp` against the pinned behavioral oracle
 `rxjs@7.8.2`, generated from `reference/exports.json` and the built
-`dist/esm/index.js` after **M14 — Temporal Operators**.
+`dist/esm/index.js` after **M15 — Boundary & Collection**.
 
-**Implemented: 101 / 175 root exports (57.7%)** — 0 unexpected exports.
+**Implemented: 119 / 175 root exports (68.0%)** — 0 unexpected exports.
 
 An implemented name means the export exists with differentially certified
 behavior for its claimed scope (see `docs/RXJS-7.8.2-PARITY.md` for
@@ -27,11 +27,11 @@ per-milestone certified scope and recorded deferrals).
 | `BehaviorSubject` ✅ | `BehaviorSubject` |
 | — | `bindCallback` |
 | — | `bindNodeCallback` |
-| — | `buffer` |
-| — | `bufferCount` |
-| — | `bufferTime` |
-| — | `bufferToggle` |
-| — | `bufferWhen` |
+| `buffer` ✅ | `buffer` |
+| `bufferCount` ✅ | `bufferCount` |
+| `bufferTime` ✅ | `bufferTime` |
+| `bufferToggle` ✅ | `bufferToggle` |
+| `bufferWhen` ✅ | `bufferWhen` |
 | `catchError` ✅ | `catchError` |
 | — | `combineAll` |
 | `combineLatest` ✅ | `combineLatest` |
@@ -46,7 +46,7 @@ per-milestone certified scope and recorded deferrals).
 | `connect` ✅ | `connect` |
 | `connectable` ✅ | `connectable` |
 | — | `ConnectableObservable` |
-| — | `count` |
+| `count` ✅ | `count` |
 | `debounce` ✅ | `debounce` |
 | `debounceTime` ✅ | `debounceTime` |
 | — | `default` |
@@ -63,15 +63,15 @@ per-milestone certified scope and recorded deferrals).
 | `EMPTY` ✅ | `EMPTY` |
 | `EmptyError` ✅ | `EmptyError` |
 | — | `endWith` |
-| — | `every` |
+| `every` ✅ | `every` |
 | — | `exhaust` |
 | `exhaustAll` ✅ | `exhaustAll` |
 | `exhaustMap` ✅ | `exhaustMap` |
 | `expand` ✅ | `expand` |
 | `filter` ✅ | `filter` |
 | `finalize` ✅ | `finalize` |
-| — | `find` |
-| — | `findIndex` |
+| `find` ✅ | `find` |
+| `findIndex` ✅ | `findIndex` |
 | `first` ✅ | `first` |
 | — | `firstValueFrom` |
 | `flatMap` ✅ | `flatMap` |
@@ -80,7 +80,7 @@ per-milestone certified scope and recorded deferrals).
 | — | `fromEvent` |
 | — | `fromEventPattern` |
 | — | `generate` |
-| — | `groupBy` |
+| `groupBy` ✅ | `groupBy` |
 | `identity` ✅ | `identity` |
 | — | `ignoreElements` |
 | — | `iif` |
@@ -92,14 +92,14 @@ per-milestone certified scope and recorded deferrals).
 | `map` ✅ | `map` |
 | — | `mapTo` |
 | — | `materialize` |
-| — | `max` |
+| `max` ✅ | `max` |
 | `merge` ✅ | `merge` |
 | `mergeAll` ✅ | `mergeAll` |
 | `mergeMap` ✅ | `mergeMap` |
 | `mergeMapTo` ✅ | `mergeMapTo` |
 | `mergeScan` ✅ | `mergeScan` |
 | `mergeWith` ✅ | `mergeWith` |
-| — | `min` |
+| `min` ✅ | `min` |
 | — | `multicast` |
 | — | `never` |
 | — | `NEVER` |
@@ -116,7 +116,7 @@ per-milestone certified scope and recorded deferrals).
 | — | `onErrorResumeNextWith` |
 | — | `pairs` |
 | `pairwise` ✅ | `pairwise` |
-| — | `partition` |
+| `partition` ✅ | `partition` |
 | `pipe` ✅ | `pipe` |
 | — | `pluck` |
 | — | `publish` |
@@ -178,11 +178,11 @@ per-milestone certified scope and recorded deferrals).
 | — | `using` |
 | — | `VirtualAction` |
 | — | `VirtualTimeScheduler` |
-| — | `window` |
-| — | `windowCount` |
-| — | `windowTime` |
-| — | `windowToggle` |
-| — | `windowWhen` |
+| `window` ✅ | `window` |
+| `windowCount` ✅ | `windowCount` |
+| `windowTime` ✅ | `windowTime` |
+| `windowToggle` ✅ | `windowToggle` |
+| `windowWhen` ✅ | `windowWhen` |
 | `withLatestFrom` ✅ | `withLatestFrom` |
 | `zip` ✅ | `zip` |
 | — | `zipAll` |

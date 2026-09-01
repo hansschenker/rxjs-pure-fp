@@ -663,7 +663,48 @@ parity error). `retry`/`repeat` numeric `delay` options now route through
 
 ---
 
-# Root parity after M14
+# M15 — Boundary & Collection
+
+Value boundaries turn the M10 Subject hub and the M14 timer surface into the
+buffer and window families. Buffers collect into arrays, windows into emitted
+Subjects — each family is one boundary policy in two materializations:
+
+```text
+buffer / window              notifier-rolled       one open boundary, rolls per fire
+bufferCount / windowCount    count-driven          startEvery overlaps or skips
+bufferTime / windowTime      clock-driven          span + creation interval + max size
+bufferToggle / windowToggle  toggle-driven         opening value picks its own closer
+bufferWhen / windowWhen      selector-cycled       one boundary, re-invoked per cycle
+```
+
+Termination fans out: source errors reach every open window before the
+result, completion completes open windows before the result; buffers flush
+open arrays on completion but drop them on error. The clock-driven pair
+rides the M14 scheduler through a repeating `executeSchedule` variant.
+
+`groupBy` demultiplexes into per-key Subjects emitted as key-stamped group
+observables, with `element` projection, `duration`-closed groups (the key
+can reopen), and `connector` replacement. Its RxJS `shouldUnsubscribe` guard
+becomes an explicit reference-counted teardown: while any group still has a
+subscriber the source outlives the result subscription, and the last group
+teardown releases it. `partition` is the static two-way `filter` split with
+independent executions.
+
+The collection queries are reduce/terminal algebra: `count`, `max`/`min`
+(seedless reductions; empty sources complete silently), `every` (first
+failure emits `false`), `find`/`findIndex` (first hit completes; misses emit
+`undefined` / `-1`). Predicates receive `(value, index, source)`; the
+deprecated `thisArg` bindings and `groupBy`'s positional arguments live in
+`src/compat/collection.ts`.
+
+# M15 verification
+
+- **141 / 141 unit** and **244 / 244 differential tests** pass (42 new M15 traces: notifier/count/time/toggle/when boundaries for both families incl. real-clock spans and creation intervals, max-size early closes, error fan-out; groupBy keys/element/duration/connector/key-throws plus the reference-counted teardown; partition splits; count/max/min/every/find/findIndex incl. thisArg and sentinel cases);
+- RxJS root export parity: **119 / 175 = 68.0%**; unexpected exports: **0**.
+
+---
+
+# Root parity after M15
 
 Implemented RxJS 7.8.2 root exports:
 
@@ -742,9 +783,18 @@ Temporal
   throttle    throttleTime
   sample      sampleTime
   timeout     timeoutWith
+
+Boundary
+  buffer      bufferCount   bufferTime   bufferToggle   bufferWhen
+  window      windowCount   windowTime   windowToggle   windowWhen
+
+Grouping / collection
+  groupBy     partition
+  count       max           min
+  every       find          findIndex
 ```
 
-That is **101 / 175 = 57.7%** of the root export names.
+That is **119 / 175 = 68.0%** of the root export names.
 
 ## Deliberate functional extensions
 
@@ -846,8 +896,8 @@ timerHost edge + one action machine; async/queue/asap as frozen policy records; 
 ### M14 — Temporal Operators ✅
 timer/interval as the time primitive; delay/delayWhen, debounce/audit/throttle/sample families as timer algebra + notifier handshakes; timeout/timeoutWith/TimeoutError; retry/repeat numeric delays.
 
-### M15 — Boundary & Collection (Session 4, 18 features)
-buffer/window families, groupBy/partition, count/max/min/every/find/findIndex.
+### M15 — Boundary & Collection ✅
+buffer/window families as boundary policies over Subjects + timers; groupBy with reference-counted release + partition; count/max/min/every/find/findIndex as reduce/terminal algebra.
 
 ### M16 — Creation & Interop (Session 5, 18 features)
 from/innerFrom ObservableInput conversion (retiring the functional-Observables-only deferrals), fromEvent/fromEventPattern, bindCallback/bindNodeCallback, defer/iif/range/generate/using, empty/never/NEVER/pairs, isObservable/observable, firstValueFrom/lastValueFrom.
@@ -872,17 +922,17 @@ final behavioral and export parity matrix.
 Session 1  M01-M05   ✅ kernel + first-order operator policies
 Session 2  M06-M10   ✅ gating + higher-order + flattening + coordination + Subjects
 Session 3  M11-M14   ✅ sharing + recovery + scheduling + time
-Session 4  M15       18 features  boundary & collection      → 119/175 (68.0%)
+Session 4  M15       ✅ boundary & collection                 → 119/175 (68.0%)
 Session 5  M16       18 features  creation & interop         → 137/175 (78.3%)
 Session 6  M17       19 features  materialization & op tail  → 156/175 (89.1%)
 Session 7  M18-M20   19 features  compat closure + gates     → 175/175 (100%)
 ```
 
-Sessions 1-3 are complete (Session 3 re-scoped to close at M14). The
-remaining **74 root exports** are planned as four exact-count feature
+Sessions 1-4 are complete (Session 3 re-scoped to close at M14). The
+remaining **56 root exports** are planned as three exact-count feature
 sessions — the per-name allocation lives in `docs/EXECUTION-PLAN.md` and the
-current per-export status in `feature-parity-list.md`. Next is **Session 4:
-M15 — Boundary & Collection**.
+current per-export status in `feature-parity-list.md`. Next is **Session 5:
+M16 — Creation & Interop**.
 
 ---
 

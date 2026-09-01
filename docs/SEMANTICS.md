@@ -353,6 +353,51 @@ functional Observables (`ObservableInput` conversion deferred); `delayWhen`'s
 deprecated `subscriptionDelay` argument is deferred to the remaining-surface
 milestone.
 
+## Boundary & collection (M15)
+
+- Buffers collect into arrays, windows into emitted Subjects; each family is
+  the same boundary policy in two materializations. Windows are delivered as
+  `asObservable()` views; buffer/window closing notifiers have swallowed
+  completions except `bufferWhen`/`windowWhen`, where notifier completion
+  also cycles.
+- Boundary shapes: notifier-driven (`buffer`/`window`: one open boundary,
+  rolls on each notifier fire, source completion flushes/completes it),
+  count-driven (`bufferCount`/`windowCount`: `startEvery` opens overlapping
+  or skipping boundaries; full boundaries close in opening order), clock-
+  driven (`bufferTime`/`windowTime`: without a creation interval exactly one
+  boundary is open and each close restarts; with one, boundaries open on a
+  repeating schedule and may overlap; `max*Size` closes early), toggle-driven
+  (`bufferToggle`/`windowToggle`: an opening value plus that value's closing
+  notifier bound one boundary; overlap is free), and selector-cycled
+  (`bufferWhen`/`windowWhen`: one boundary at a time, the closing selector is
+  re-invoked per cycle).
+- Termination fan-out: source errors reach every open window before the
+  result; completion completes open windows before the result. Buffers flush
+  open arrays on completion in opening order, but an error drops them.
+- `groupBy` demultiplexes into per-key Subjects (`connector` replaces them)
+  emitted as key-stamped observables. A group `duration` notifier's first
+  emission or completion completes just that group and forgets the key, so
+  the same key can reopen. Downstream release is reference-counted: the
+  source outlives the result subscription while any group is still
+  subscribed, and the last group teardown releases it (RxJS
+  `shouldUnsubscribe` behavior as an explicit guard teardown).
+- `partition(source, predicate)` is two independent `filter`ed subscriptions
+  over the same source — each half runs its own execution with its own index
+  sequence.
+- Collection queries are `reduce`/terminal-emission algebra: `count`
+  reduces a running total; `max`/`min` are seedless reductions over the
+  native ordering or a comparer (empty sources complete without emitting);
+  `every` emits `false` at the first failure or `true` at completion;
+  `find`/`findIndex` emit the first hit (value or index) and complete, or
+  the miss sentinel (`undefined` / `-1`) at completion. Predicates receive
+  `(value, index, source)`.
+
+M15 scope notes: boundary notifiers, closing selectors, and group durations
+take functional Observables (`ObservableInput` conversion deferred to M16);
+the deprecated `thisArg` bindings (`every`/`find`/`findIndex`/`partition`)
+and `groupBy`'s positional `element`/`duration`/`connector` arguments are
+compat surface (`src/compat/collection.ts`).
+
 ## Algebraic structures (F8)
 
 Several kernel structures are named algebras. Every law below is executable:

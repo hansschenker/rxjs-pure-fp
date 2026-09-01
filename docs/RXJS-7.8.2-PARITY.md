@@ -1,27 +1,28 @@
 # RxJS 7.8.2 Parity
 
-## Current milestone: M14 — Temporal Operators (Session 3 in progress)
+## Current milestone: M15 — Boundary & Collection (Session 4 complete)
 
-Sessions 1 (M01-M05) and 2 (M06-M10) are complete; Session 3 is in progress
-with M11-M14 landed. Between M05 and M06, the F1-F8 functional-deepening work
+Sessions 1 (M01-M05), 2 (M06-M10), 3 (M11-M14), and 4 (M15) are complete.
+Between M05 and M06, the F1-F8 functional-deepening work
 (docs/FP-ROADMAP.md) restructured the source into `src/kernel/**` and
-`src/compat/**` without changing behavioral scope. M13 built the scheduler
-kernel over the `timerHost` edge; M14 turns it into the public temporal
-surface.
+`src/compat/**` without changing behavioral scope. M15 turns the M10
+Subject hub and the M14 timer surface into value boundaries — the buffer
+and window families, `groupBy`/`partition` — plus the reduce-style
+collection queries.
 
-| Dimension | M14 status |
+| Dimension | M15 status |
 | --- | --- |
 | Behavioral oracle | pinned `rxjs@7.8.2` |
-| Architecture gate | passes across 96 TypeScript source files |
-| Unit tests | 114 / 114 |
-| Differential tests | 202 / 202 total |
-| New M14 differential traces | 23 |
-| RxJS root exports implemented | 101 / 175 = 57.7% |
+| Architecture gate | passes across 114 TypeScript source files |
+| Unit tests | 141 / 141 |
+| Differential tests | 244 / 244 total |
+| New M15 differential traces | 42 |
+| RxJS root exports implemented | 119 / 175 = 68.0% |
 | Functional root extensions | 16 |
 | Unexpected root exports | 0 |
-| Distribution architecture | passes across 192 emitted JavaScript files |
+| Distribution architecture | passes across 228 emitted JavaScript files |
 
-## Root parity exports through M14
+## Root parity exports through M15
 
 ### Runtime/core
 
@@ -156,6 +157,30 @@ surface.
 - `combineLatestWith`
 - `zipWith`
 - `raceWith`
+
+### Boundary
+
+- `buffer`
+- `bufferCount`
+- `bufferTime`
+- `bufferToggle`
+- `bufferWhen`
+- `window`
+- `windowCount`
+- `windowTime`
+- `windowToggle`
+- `windowWhen`
+
+### Grouping & collection
+
+- `groupBy`
+- `partition`
+- `count`
+- `max`
+- `min`
+- `every`
+- `find`
+- `findIndex`
 
 ## Functional root extensions
 
@@ -463,6 +488,42 @@ hub records (the documented sharing topology) and are not frozen.
 
 Total: **202 / 202** differential tests.
 
+## M15 certified scope
+
+`buffer` / `window`: notifier-rolled boundaries — emission on each notifier
+fire (including empty boundaries), swallowed notifier completion, source
+completion flushing the open buffer / completing the open window, source
+errors fanned into the open window before the result. `bufferCount` /
+`windowCount`: exact, overlapping (`startEvery < size`), and skipping
+(`startEvery > size`) boundaries; full boundaries retire in opening order;
+completion flushes the remainder. `bufferTime` / `windowTime`: span-closed
+boundaries with immediate restart; creation-interval mode with overlapping
+boundaries and value drops between them; `maxBufferSize`/`maxWindowSize`
+early closes (certified synchronously and against the real clock); the
+trailing-scheduler argument shape. `bufferToggle` / `windowToggle`:
+per-opening boundaries closed by that opening's selector notifier, free
+overlap, completion flushing in opening order, selector throws erroring open
+windows before the result. `bufferWhen` / `windowWhen`: selector-cycled
+single boundaries, notifier completion also cycling (`windowWhen`), no
+leading empty buffer emission. `groupBy`: key demultiplexing with key-stamped
+group observables, `element` projection, `duration`-closed groups with key
+reopening, `connector` Subjects, key-selector throws fanned to every group,
+and reference-counted downstream release (source outlives the result
+subscription while any group is subscribed; certified differentially).
+`partition`: static two-way `filter` split with independent executions and
+the deprecated `thisArg`. `count` / `max` / `min`: reduce algebra including
+comparers, predicates, and silent empty completion for `max`/`min`. `every`
+/ `find` / `findIndex`: first-failure/first-hit early termination, miss
+sentinels (`true` on empty `every`, `undefined`, `-1`), `(value, index,
+source)` predicate arity, predicate throws, and the deprecated `thisArg`
+compat bindings.
+
+**Deviations/deferrals:** boundary notifiers, closing selectors, and group
+durations must be functional Observables (`ObservableInput` conversion
+deferred to M16); `groupBy`'s deprecated positional
+`element`/`duration`/`connector` arguments are compat surface normalized
+onto the kernel options record.
+
 ## M14 certified scope
 
 `timer`: one-shot due times (delays and past/future `Date`s), periodic
@@ -539,7 +600,7 @@ scheduler arguments deferred until clocks land.
 
 ## Interpretation of export parity
 
-The current 101/175 score measures root-name coverage only. It is not a direct percentage of engineering completion.
+The current 119/175 score measures root-name coverage only. It is not a direct percentage of engineering completion.
 
 A root export can also have intentionally deferred overload/interoperability scope. Such gaps are recorded explicitly rather than hidden by the export count.
 
