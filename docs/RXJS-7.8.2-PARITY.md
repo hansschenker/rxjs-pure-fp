@@ -1,28 +1,29 @@
 # RxJS 7.8.2 Parity
 
-## Current milestone: M16 — Creation & Interop (Session 5 complete)
+## Current milestone: M17 — Materialization & Operator Tail (Session 6 complete)
 
-Sessions 1 (M01-M05), 2 (M06-M10), 3 (M11-M14), 4 (M15), and 5 (M16) are
-complete. Between M05 and M06, the F1-F8 functional-deepening work
+Sessions 1 (M01-M05), 2 (M06-M10), 3 (M11-M14), 4 (M15), 5 (M16), and 6
+(M17) are complete. Between M05 and M06, the F1-F8 functional-deepening work
 (docs/FP-ROADMAP.md) restructured the source into `src/kernel/**` and
-`src/compat/**` without changing behavioral scope. M16 lands `innerFrom` —
-one `ObservableInput` conversion boundary — plus the creation and interop
-surface built over it, and retires every functional-Observables-only
-deferral recorded across M05-M15.
+`src/compat/**` without changing behavioral scope. M17 lands notifications
+as data (`materialize`/`dematerialize` plus the deprecated `Notification`
+surface), stream metadata (`timeInterval`/`timestamp`), the deprecated
+operator algebra tail, and the M12-deferral resubscription names
+(`retryWhen`/`repeatWhen`/`onErrorResumeNext`).
 
-| Dimension | M16 status |
+| Dimension | M17 status |
 | --- | --- |
 | Behavioral oracle | pinned `rxjs@7.8.2` |
-| Architecture gate | passes across 127 TypeScript source files |
-| Unit tests | 178 / 178 |
-| Differential tests | 263 / 263 total |
-| New M16 differential traces | 19 |
-| RxJS root exports implemented | 137 / 175 = 78.3% |
+| Architecture gate | passes across 145 TypeScript source files |
+| Unit tests | 199 / 199 |
+| Differential tests | 279 / 279 total |
+| New M17 differential traces | 16 |
+| RxJS root exports implemented | 156 / 175 = 89.1% |
 | Functional root extensions | 17 |
 | Unexpected root exports | 0 |
-| Distribution architecture | passes across 254 emitted JavaScript files |
+| Distribution architecture | passes across 290 emitted JavaScript files |
 
-## Root parity exports through M16
+## Root parity exports through M17
 
 ### Runtime/core
 
@@ -117,6 +118,7 @@ deferral recorded across M05-M15.
 - `mergeScan`
 - `switchScan`
 - `expand`
+- `exhaust` (deprecated `exhaustAll` alias)
 
 ### Subjects
 
@@ -156,6 +158,10 @@ deferral recorded across M05-M15.
 - `repeat`
 - `finalize`
 - `throwError`
+- `retryWhen`
+- `repeatWhen`
+- `onErrorResumeNext`
+- `onErrorResumeNextWith`
 
 ### Sharing
 
@@ -202,6 +208,26 @@ deferral recorded across M05-M15.
 - `every`
 - `find`
 - `findIndex`
+
+### Materialization & metadata
+
+- `materialize`
+- `dematerialize`
+- `Notification`
+- `NotificationKind`
+- `timeInterval`
+- `timestamp`
+
+### Operator tail
+
+- `startWith`
+- `endWith`
+- `ignoreElements`
+- `mapTo`
+- `pluck`
+- `toArray`
+- `isEmpty`
+- `sequenceEqual`
 
 ## Functional root extensions
 
@@ -506,8 +532,56 @@ hub records (the documented sharing topology) and are not frozen.
 - M14: 23 temporal traces
 - M15: 42 boundary/collection traces
 - M16: 19 creation/interop traces
+- M17: 16 materialization/operator-tail traces
 
-Total: **263 / 263** differential tests.
+Total: **279 / 279** differential tests.
+
+## M17 certified scope
+
+`materialize`: every protocol notification reified as a `next` carrying a
+frozen `{ kind, value, error, hasValue }` record — the same own enumerable
+fields RxJS's `Notification` constructor assigns — with the result
+completing after a terminal record; complete records are one shared
+instance. `dematerialize`: replay of any record with a string `kind`
+(including plain objects and RxJS instances) — `'N'` next, `'E'` error,
+any other string kind completes (RxJS fallthrough); non-string `kind`
+throws RxJS's exact validation `TypeError` onto the error channel; certified
+round-trip with `materialize` over value and error sources. `Notification`
+/ `NotificationKind`: the statics (`createNext`/`createError`/
+`createComplete` with its shared instance), the deprecated constructor form
+preserving `value`/`error` verbatim for any kind, `observe`/`do`/`accept`
+dispatch, `toObservable` (`of`/`throwError`/`EMPTY`), and the string enum's
+runtime object. `timeInterval`: elapsed `scheduler.now()` time between
+emissions (subscription time first), certified with a deterministic clock.
+`timestamp`: value/provider-clock pairs. `startWith`/`endWith`: prefix and
+suffix ordering across value, empty, and error sources. `ignoreElements`:
+terminals only. `mapTo`/`pluck`: constant and nested-property projections,
+including `pluck`'s nullish/`undefined` short-circuit and its synchronous
+empty-list throw. `toArray`: per-subscription accumulation, `[]` on empty.
+`isEmpty`: first-decisive-event answer. `sequenceEqual`: symmetric buffered
+comparison, early `false` on mismatch or on a value after the other side's
+empty-backlog completion, verdict on joint completion, custom comparators,
+`ObservableInput` `compareTo`. `retryWhen`/`repeatWhen`: lazily created
+notifier Subjects fed per terminal, resubscription per notifier emission
+including the `syncResub` handshake for synchronous terminals (certified
+with scripted run/teardown ordering), notifier completion completing the
+result (`repeatWhen` jointly with the source), notifier errors passing
+through. `onErrorResumeNext` (creation) / `onErrorResumeNextWith`
+(operator): sequential sources with both terminal signals swallowed,
+teardown-driven advancement, unconvertible inputs skipped, rest-arguments
+and single-array forms. `exhaust`: the same function reference as
+`exhaustAll` on both sides.
+
+**Deviations/deferrals:** the deprecated trailing-scheduler forms of
+`startWith`/`endWith` ride `scheduled` and are deferred to M18 with the
+other scheduler shapes; `Notification` is a non-constructible functional
+factory (call form, no `new`), its records are frozen, and its deprecated
+methods are non-enumerable own properties rather than prototype methods;
+`materialize` emits pure data records — the deprecated method surface lives
+on the compat `Notification` factory records, which stay deep-equal to the
+materialized data records; the kernel and compat complete singletons are
+distinct objects (each internally reference-stable); `timeInterval` emits
+plain records, not `TimeInterval` class instances.
 
 ## M16 certified scope
 

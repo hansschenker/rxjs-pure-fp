@@ -445,6 +445,59 @@ M18); a function carrying `Symbol.observable` is taken as a functional
 Observable, not an interop carrier; the jQuery-style handler type drops the
 `this: TContext` typing (kernel purity).
 
+## Materialization & operator tail (M17)
+
+- `materialize` reifies the protocol as data: each `next`/`complete`/`error`
+  becomes a `next` carrying a frozen record `{ kind, value, error, hasValue }`
+  — the same own enumerable fields RxJS's `Notification` constructor assigns
+  — and the result completes after a terminal record. Complete records are
+  one shared instance (RxJS's `completeNotification` singleton parity).
+- `dematerialize` replays any record with a string `kind` through
+  `observeNotification`: `'N'` → next, `'E'` → error, any other string kind
+  completes (RxJS's fallthrough); a non-string `kind` throws RxJS's
+  validation `TypeError` onto the error channel.
+- `Notification` is a non-constructible functional factory (compat) carrying
+  the class statics `createNext`/`createError`/`createComplete`; its records
+  add the deprecated `observe`/`do`/`accept`/`toObservable` methods
+  non-enumerably, as prototype methods are, so factory records and
+  materialized data records stay deep-equal. `createComplete` returns one
+  shared record. `NotificationKind` is the string enum's runtime object.
+- `timeInterval` pairs each value with elapsed `scheduler.now()` time since
+  the previous emission (subscription time for the first); `timestamp` pairs
+  each value with the provider clock. Both emit plain records.
+- `startWith`/`endWith` are `concat` algebra over `[values, source]` /
+  `[source, of(...values)]`; `ignoreElements` forwards only terminals;
+  `mapTo` and `pluck` are `map` projections — `pluck` preserves RxJS's
+  short-circuit (any nullish hop or `undefined` property value projects
+  `undefined`) and throws synchronously on an empty property list.
+- `toArray` accumulates per subscription and always emits on completion
+  (empty sources yield `[]`); `isEmpty` answers on the first decisive event.
+- `sequenceEqual` buffers both sides symmetrically, emits `false` on the
+  first mismatch (or on a value after the other side completed with an empty
+  backlog) and the final verdict when both complete; `compareTo` is any
+  `ObservableInput`.
+- `retryWhen`/`repeatWhen` (deprecated M12 tail): terminal signals feed a
+  Subject created lazily on the first error/completion and handed to the
+  notifier once; each notifier emission resubscribes the source, with RxJS's
+  `syncResub` handshake for terminals that arrive while the attempt is still
+  being wired. `retryWhen` completes when its notifier completes;
+  `repeatWhen` completes only when both source and notifier have completed
+  (`checkComplete`), and notifier errors pass through in both.
+- `onErrorResumeNext` (creation; operator form `onErrorResumeNextWith`) runs
+  sources sequentially and swallows both terminal signals — only exhausting
+  the list completes, nothing ever errors. Advancing rides teardown
+  (`add` on a just-closed subscriber runs immediately), and inputs that fail
+  `innerFrom` conversion are skipped like errored sources.
+- `exhaust` is the deprecated alias: the same function reference as
+  `exhaustAll`.
+
+M17 scope notes: the deprecated trailing-scheduler forms of
+`startWith`/`endWith` ride `scheduled` (deferred to M18 with the other
+scheduler shapes); materialized records are pure data — the deprecated
+notification methods live on the compat `Notification` factory records, and
+the kernel and compat complete singletons are distinct (each internally
+reference-stable).
+
 ## Algebraic structures (F8)
 
 Several kernel structures are named algebras. Every law below is executable:
@@ -489,4 +542,4 @@ policy's algebra separately.
 
 ## Differential evidence
 
-Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contained 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies; the F-work added kernel-operator suites, M06 added 21 selection/gating traces, M07 added 15 flattening-machine traces, M08 added 17 flattening-operator traces, M09 added 19 coordination traces, M10 added 10 subject traces, M11 added 11 sharing traces, M12 added 13 error/resubscription traces, M13 added 7 scheduler traces, M14 added 23 temporal traces, M15 added 42 boundary/collection traces, and M16 adds 19 creation/interop traces for a current total of 263 differential tests.
+Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contained 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies; the F-work added kernel-operator suites, M06 added 21 selection/gating traces, M07 added 15 flattening-machine traces, M08 added 17 flattening-operator traces, M09 added 19 coordination traces, M10 added 10 subject traces, M11 added 11 sharing traces, M12 added 13 error/resubscription traces, M13 added 7 scheduler traces, M14 added 23 temporal traces, M15 added 42 boundary/collection traces, M16 added 19 creation/interop traces, and M17 adds 16 materialization/operator-tail traces for a current total of 279 differential tests.

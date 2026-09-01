@@ -749,7 +749,46 @@ representational analog of `instanceof`.
 
 ---
 
-# Root parity after M16
+# M17 — Materialization & Operator Tail
+
+Materialization reifies the notification protocol as data. `materialize`
+turns every `next`/`error`/`complete` into a `next` carrying a frozen record
+with the exact own fields RxJS's deprecated `Notification` class assigns:
+
+```text
+{ kind: 'N', value, error: undefined, hasValue: true  }
+{ kind: 'E', value: undefined, error, hasValue: false }
+{ kind: 'C', value: undefined, error: undefined, hasValue: false }   one shared instance
+```
+
+`dematerialize` replays any record with a string `kind` back onto the live
+protocol — including RxJS's quirks: unknown string kinds complete, and a
+missing `kind` throws the validation `TypeError`. The deprecated
+`Notification` surface is a non-constructible functional factory (compat)
+carrying the class statics, with `observe`/`do`/`accept`/`toObservable`
+attached non-enumerably — the kernel purity gate forbids
+`defineProperties`, so the method surface is compat by construction, and
+factory records stay deep-equal to materialized data records.
+
+The operator tail is mostly algebra over existing machinery: `startWith`/
+`endWith` are `concat`; `mapTo`/`pluck`/`timestamp` are `map`; `toArray` is
+a pure accumulation step; `exhaust` is the `exhaustAll` reference itself.
+`timeInterval` measures scheduler-clock gaps, `isEmpty` answers on the first
+decisive event, and `sequenceEqual` runs symmetric buffered comparison over
+any `ObservableInput`. The M12 deferral names close the resubscription
+story: `retryWhen`/`repeatWhen` feed terminals into lazily created notifier
+Subjects with RxJS's `syncResub` handshake ported exactly, and
+`onErrorResumeNext` (creation + `onErrorResumeNextWith` operator) swallows
+both terminal signals, advancing through its source list via teardown.
+
+# M17 verification
+
+- **199 / 199 unit** and **279 / 279 differential tests** pass (16 new M17 traces: materialize records incl. the shared complete instance; dematerialize round trips, plain records, unknown kinds, validation TypeErrors; Notification statics/constructor/dispatch/toObservable and NotificationKind; deterministic-clock timeInterval/timestamp; startWith/endWith across terminals; ignoreElements/mapTo/pluck quirks; toArray/isEmpty; sequenceEqual verdicts; retryWhen/repeatWhen scripted run/teardown ordering incl. syncResub; onErrorResumeNext forms incl. skipped unconvertible inputs; exhaust aliasing);
+- RxJS root export parity: **156 / 175 = 89.1%**; unexpected exports: **0**.
+
+---
+
+# Root parity after M17
 
 Implemented RxJS 7.8.2 root exports:
 
@@ -816,7 +855,7 @@ Selection / gating
 
 Flattening
   mergeMap    flatMap     concatMap   switchMap   exhaustMap
-  mergeAll    concatAll   switchAll   exhaustAll
+  mergeAll    concatAll   switchAll   exhaustAll  exhaust
   mergeMapTo  concatMapTo switchMapTo
   mergeScan   switchScan  expand
 
@@ -834,7 +873,8 @@ Sharing
   share       shareReplay       connectable   connect
 
 Error / resubscription
-  catchError  retry   repeat    finalize      throwError
+  catchError  retry       repeat    finalize    throwError
+  retryWhen   repeatWhen  onErrorResumeNext     onErrorResumeNextWith
 
 Schedulers
   asyncScheduler  asapScheduler  queueScheduler
@@ -857,9 +897,19 @@ Grouping / collection
   groupBy     partition
   count       max           min
   every       find          findIndex
+
+Materialization / metadata
+  materialize   dematerialize
+  Notification  NotificationKind
+  timeInterval  timestamp
+
+Operator tail
+  startWith     endWith
+  ignoreElements  mapTo   pluck
+  toArray       isEmpty   sequenceEqual
 ```
 
-That is **137 / 175 = 78.3%** of the root export names.
+That is **156 / 175 = 89.1%** of the root export names.
 
 ## Deliberate functional extensions
 
@@ -967,8 +1017,8 @@ buffer/window families as boundary policies over Subjects + timers; groupBy with
 ### M16 — Creation & Interop ✅
 from/innerFrom ObservableInput conversion (retiring the functional-Observables-only deferrals), fromEvent/fromEventPattern, bindCallback/bindNodeCallback, defer/iif/range/generate/using, empty/never/NEVER/pairs, isObservable/observable, firstValueFrom/lastValueFrom.
 
-### M17 — Materialization & Operator Tail (Session 6, 19 features)
-materialize/dematerialize/Notification/NotificationKind, timeInterval/timestamp, startWith/endWith, ignoreElements/mapTo/pluck, toArray/isEmpty/sequenceEqual, retryWhen/repeatWhen/onErrorResumeNext(With), exhaust.
+### M17 — Materialization & Operator Tail ✅
+materialize/dematerialize as frozen notification records + the compat Notification factory and NotificationKind; timeInterval/timestamp metadata; startWith/endWith/ignoreElements/mapTo/pluck/toArray/isEmpty/sequenceEqual tail; retryWhen/repeatWhen/onErrorResumeNext(With) closing the M12 deferrals; exhaust alias.
 
 ### M18 — Compat Closure (Session 7, 19 features)
 ConnectableObservable/multicast/publish family/refCount, combineAll/combineLatestAll/zipAll, Scheduler/scheduled, animationFrame(s)/animationFrameScheduler, VirtualAction/VirtualTimeScheduler, package-shape artifacts.
@@ -989,15 +1039,15 @@ Session 2  M06-M10   ✅ gating + higher-order + flattening + coordination + Sub
 Session 3  M11-M14   ✅ sharing + recovery + scheduling + time
 Session 4  M15       ✅ boundary & collection                 → 119/175 (68.0%)
 Session 5  M16       ✅ creation & interop                    → 137/175 (78.3%)
-Session 6  M17       19 features  materialization & op tail  → 156/175 (89.1%)
+Session 6  M17       ✅ materialization & op tail             → 156/175 (89.1%)
 Session 7  M18-M20   19 features  compat closure + gates     → 175/175 (100%)
 ```
 
-Sessions 1-5 are complete (Session 3 re-scoped to close at M14). The
-remaining **38 root exports** are planned as two exact-count feature
-sessions — the per-name allocation lives in `docs/EXECUTION-PLAN.md` and the
-current per-export status in `feature-parity-list.md`. Next is **Session 6:
-M17 — Materialization & Operator Tail**.
+Sessions 1-6 are complete (Session 3 re-scoped to close at M14). The
+remaining **19 root exports** land in one final feature session — the
+per-name allocation lives in `docs/EXECUTION-PLAN.md` and the current
+per-export status in `feature-parity-list.md`. Next is **Session 7:
+M18 — Compat Closure plus the M19/M20 gates**.
 
 ---
 

@@ -2,9 +2,9 @@
 
 Root export parity of `rxjs-pure-fp` against the pinned behavioral oracle
 `rxjs@7.8.2`, generated from `reference/exports.json` and the built
-`dist/esm/index.js` after **M16 — Creation & Interop**.
+`dist/esm/index.js` after **M17 — Materialization & Operator Tail**.
 
-**Implemented: 137 / 175 root exports (78.3%)** — 0 unexpected exports.
+**Implemented: 156 / 175 root exports (89.1%)** — 0 unexpected exports.
 
 An implemented name means the export exists with differentially certified
 behavior for its claimed scope (see `docs/RXJS-7.8.2-PARITY.md` for
@@ -20,8 +20,8 @@ per-milestone certified scope and recorded deferrals).
 | `EmptyError` ✅ | `EmptyError` |
 | `NEVER` ✅ | `NEVER` |
 | `NotFoundError` ✅ | `NotFoundError` |
-| — | `Notification` |
-| — | `NotificationKind` |
+| `Notification` ✅ | `Notification` |
+| `NotificationKind` ✅ | `NotificationKind` |
 | `ObjectUnsubscribedError` ✅ | `ObjectUnsubscribedError` |
 | `Observable` ✅ | `Observable` |
 | `ReplaySubject` ✅ | `ReplaySubject` |
@@ -72,15 +72,15 @@ per-milestone certified scope and recorded deferrals).
 | `defer` ✅ | `defer` |
 | `delay` ✅ | `delay` |
 | `delayWhen` ✅ | `delayWhen` |
-| — | `dematerialize` |
+| `dematerialize` ✅ | `dematerialize` |
 | `distinct` ✅ | `distinct` |
 | `distinctUntilChanged` ✅ | `distinctUntilChanged` |
 | `distinctUntilKeyChanged` ✅ | `distinctUntilKeyChanged` |
 | `elementAt` ✅ | `elementAt` |
 | `empty` ✅ | `empty` |
-| — | `endWith` |
+| `endWith` ✅ | `endWith` |
 | `every` ✅ | `every` |
-| — | `exhaust` |
+| `exhaust` ✅ | `exhaust` |
 | `exhaustAll` ✅ | `exhaustAll` |
 | `exhaustMap` ✅ | `exhaustMap` |
 | `expand` ✅ | `expand` |
@@ -98,16 +98,16 @@ per-milestone certified scope and recorded deferrals).
 | `generate` ✅ | `generate` |
 | `groupBy` ✅ | `groupBy` |
 | `identity` ✅ | `identity` |
-| — | `ignoreElements` |
+| `ignoreElements` ✅ | `ignoreElements` |
 | `iif` ✅ | `iif` |
 | `interval` ✅ | `interval` |
-| — | `isEmpty` |
+| `isEmpty` ✅ | `isEmpty` |
 | `isObservable` ✅ | `isObservable` |
 | `last` ✅ | `last` |
 | `lastValueFrom` ✅ | `lastValueFrom` |
 | `map` ✅ | `map` |
-| — | `mapTo` |
-| — | `materialize` |
+| `mapTo` ✅ | `mapTo` |
+| `materialize` ✅ | `materialize` |
 | `max` ✅ | `max` |
 | `merge` ✅ | `merge` |
 | `mergeAll` ✅ | `mergeAll` |
@@ -122,13 +122,13 @@ per-milestone certified scope and recorded deferrals).
 | `observable` ✅ | `observable` |
 | `observeOn` ✅ | `observeOn` |
 | `of` ✅ | `of` |
-| — | `onErrorResumeNext` |
-| — | `onErrorResumeNextWith` |
+| `onErrorResumeNext` ✅ | `onErrorResumeNext` |
+| `onErrorResumeNextWith` ✅ | `onErrorResumeNextWith` |
 | `pairs` ✅ | `pairs` |
 | `pairwise` ✅ | `pairwise` |
 | `partition` ✅ | `partition` |
 | `pipe` ✅ | `pipe` |
-| — | `pluck` |
+| `pluck` ✅ | `pluck` |
 | — | `publish` |
 | — | `publishBehavior` |
 | — | `publishLast` |
@@ -141,14 +141,14 @@ per-milestone certified scope and recorded deferrals).
 | `reduce` ✅ | `reduce` |
 | — | `refCount` |
 | `repeat` ✅ | `repeat` |
-| — | `repeatWhen` |
+| `repeatWhen` ✅ | `repeatWhen` |
 | `retry` ✅ | `retry` |
-| — | `retryWhen` |
+| `retryWhen` ✅ | `retryWhen` |
 | `sample` ✅ | `sample` |
 | `sampleTime` ✅ | `sampleTime` |
 | `scan` ✅ | `scan` |
 | — | `scheduled` |
-| — | `sequenceEqual` |
+| `sequenceEqual` ✅ | `sequenceEqual` |
 | `share` ✅ | `share` |
 | `shareReplay` ✅ | `shareReplay` |
 | `single` ✅ | `single` |
@@ -156,7 +156,7 @@ per-milestone certified scope and recorded deferrals).
 | `skipLast` ✅ | `skipLast` |
 | `skipUntil` ✅ | `skipUntil` |
 | `skipWhile` ✅ | `skipWhile` |
-| — | `startWith` |
+| `startWith` ✅ | `startWith` |
 | `subscribeOn` ✅ | `subscribeOn` |
 | `switchAll` ✅ | `switchAll` |
 | `switchMap` ✅ | `switchMap` |
@@ -171,12 +171,12 @@ per-milestone certified scope and recorded deferrals).
 | `throttleTime` ✅ | `throttleTime` |
 | `throwError` ✅ | `throwError` |
 | `throwIfEmpty` ✅ | `throwIfEmpty` |
-| — | `timeInterval` |
+| `timeInterval` ✅ | `timeInterval` |
 | `timeout` ✅ | `timeout` |
 | `timeoutWith` ✅ | `timeoutWith` |
 | `timer` ✅ | `timer` |
-| — | `timestamp` |
-| — | `toArray` |
+| `timestamp` ✅ | `timestamp` |
+| `toArray` ✅ | `toArray` |
 | `using` ✅ | `using` |
 | `window` ✅ | `window` |
 | `windowCount` ✅ | `windowCount` |

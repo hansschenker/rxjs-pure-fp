@@ -13,7 +13,7 @@ Session 2  M06-M10   ✅ complete
 Session 3  M11-M14   ✅ complete (M15 moved to Session 4)
 Session 4  M15       ✅ complete   boundary & collection      → 119/175 (68.0%)
 Session 5  M16       ✅ complete   creation & interop         → 137/175 (78.3%)
-Session 6  M17       19 features   materialization & op tail  → 156/175 (89.1%)
+Session 6  M17       ✅ complete   materialization & op tail  → 156/175 (89.1%)
 Session 7  M18-M20   19 features   compat closure + gates     → 175/175 (100%)
 ```
 
@@ -172,7 +172,7 @@ Deprecated scheduler arguments of `from`/`range`/`empty`/`pairs`/`generate`
 ride `scheduled` and moved to M18; `bindCallback`'s scheduler form landed on
 `subscribeOn`/`observeOn`.
 
-## Session 6 — M17 Materialization & Operator Tail (19)
+## Session 6 — M17 Materialization & Operator Tail (19) ✅
 
 Notifications as data, stream metadata, and the deprecated operator algebra
 tail (closing the M12 deferral names):
@@ -186,6 +186,17 @@ toArray       isEmpty   sequenceEqual
 retryWhen     repeatWhen   onErrorResumeNext   onErrorResumeNextWith
 exhaust
 ```
+
+Landed as planned: materialized notifications are frozen pure-data records
+matching the class constructor's own fields, with the deprecated
+`observe`/`do`/`accept`/`toObservable` methods attached non-enumerably on
+the compat `Notification` factory records (kernel purity forbids
+`defineProperties`, so the method surface is compat by construction).
+`retryWhen`/`repeatWhen` port RxJS's `syncResub` handshake exactly —
+synchronous sources complete `repeatWhen(take(2))` after the second run,
+matching the oracle. `onErrorResumeNext` advances via teardown (`add` on a
+closed subscriber runs immediately). The deprecated trailing-scheduler
+forms of `startWith`/`endWith` joined the M18 `scheduled` deferrals.
 
 ## Session 7 — M18 Compat Closure + M19/M20 gates (19)
 
