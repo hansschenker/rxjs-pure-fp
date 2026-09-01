@@ -100,23 +100,23 @@ export const innerFrom = <T>(input: ObservableInput<T>): Observable<T> => {
 export const isObservable = (value: unknown): value is Observable<unknown> =>
   isBrandedObservable(value);
 
-const isInteropObservable = (input: object): input is InteropObservable<unknown> =>
+export const isInteropObservable = (input: object): input is InteropObservable<unknown> =>
   typeof (input as Record<PropertyKey, unknown>)[observable] === 'function';
 
-const isArrayLike = (input: object): input is ArrayLike<unknown> =>
+export const isArrayLike = (input: object): input is ArrayLike<unknown> =>
   typeof (input as ArrayLike<unknown>).length === 'number';
 
-const isPromise = (input: object): input is PromiseLike<unknown> =>
+export const isPromise = (input: object): input is PromiseLike<unknown> =>
   typeof (input as PromiseLike<unknown>).then === 'function';
 
-const isAsyncIterable = (input: object): input is AsyncIterable<unknown> =>
+export const isAsyncIterable = (input: object): input is AsyncIterable<unknown> =>
   typeof Symbol.asyncIterator === 'symbol' &&
   typeof (input as Partial<AsyncIterable<unknown>>)[Symbol.asyncIterator] === 'function';
 
-const isIterable = (input: object): input is Iterable<unknown> =>
+export const isIterable = (input: object): input is Iterable<unknown> =>
   typeof (input as Partial<Iterable<unknown>>)[Symbol.iterator] === 'function';
 
-const isReadableStreamLike = (input: object): input is ReadableStreamLike<unknown> =>
+export const isReadableStreamLike = (input: object): input is ReadableStreamLike<unknown> =>
   typeof (input as Partial<ReadableStreamLike<unknown>>).getReader === 'function';
 
 const fromInteropObservable = <T>(input: InteropObservable<T>): Observable<T> =>
@@ -187,7 +187,7 @@ const fromAsyncIterable = <T>(asyncIterable: AsyncIterable<T>): Observable<T> =>
     );
   });
 
-const readableStreamToAsyncGenerator = async function* <T>(
+export const readableStreamToAsyncGenerator = async function* <T>(
   readableStream: ReadableStreamLike<T>
 ): AsyncGenerator<T> {
   const reader = readableStream.getReader();
@@ -207,7 +207,7 @@ const readableStreamToAsyncGenerator = async function* <T>(
 const fromReadableStreamLike = <T>(readableStream: ReadableStreamLike<T>): Observable<T> =>
   fromAsyncIterable(readableStreamToAsyncGenerator(readableStream));
 
-const createInvalidObservableTypeError = (input: unknown): TypeError =>
+export const createInvalidObservableTypeError = (input: unknown): TypeError =>
   new TypeError(
     `You provided ${
       input !== null && typeof input === 'object' ? 'an invalid object' : `'${String(input)}'`

@@ -89,11 +89,15 @@ for (const file of files) {
       }
 
       // F6: host timers are the deferral edge owned by runtime.ts; everything
-      // else must go through a RuntimeEnv's `defer`.
+      // else must go through a RuntimeEnv's `defer`. M18 adds the
+      // animation-frame edge and the high-resolution clock to that edge.
       if (
         path.basename(file) !== 'runtime.ts' &&
         ts.isIdentifier(node) &&
-        ['setTimeout', 'setInterval', 'setImmediate', 'queueMicrotask'].includes(node.text)
+        [
+          'setTimeout', 'setInterval', 'setImmediate', 'queueMicrotask',
+          'requestAnimationFrame', 'cancelAnimationFrame', 'performance'
+        ].includes(node.text)
       ) {
         report(file, sourceFile, node, 'kernel purity: host timer access is forbidden outside runtime.ts');
       }

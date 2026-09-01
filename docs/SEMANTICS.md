@@ -190,7 +190,7 @@ M08 scope note: since M16 inner inputs are any `ObservableInput`.
   arguments.
 
 M09 deviations and scope notes: since M16 all inputs are any
-`ObservableInput`; deprecated scheduler arguments are deferred to M18; and
+`ObservableInput`; the deprecated scheduler arguments landed in M18; and
 because Observables are functions here, trailing rest
 sources must be branded (kernel-created) Observables for the selector-capable
 compat surfaces — raw-function sources should use the array forms.
@@ -250,8 +250,7 @@ surface, matching the `distinct` flush policy.
 
 Deviations: `BehaviorSubject.value` is a live snapshot data property (it does
 not throw; use `getValue()` for the throwing contract); `ReplaySubject`
-supports the size window only (time windows still unwired, though clocks
-landed in M13/M14); subject methods do
+time windows landed in M18; subject methods do
 not participate in the deprecated synchronous error context; subjects are
 mutable hub records and therefore not frozen.
 
@@ -275,7 +274,7 @@ mutable hub records and therefore not frozen.
 
 M11 deviations: connection and reset-notifier observers use raw kernel
 subscribers rather than the safe consumer boundary (handler-throw edge cases
-are not claimed); replay time windows remain deferred until clocks land.
+are not claimed); replay time windows landed in M18.
 
 ## Error & resubscription (M12)
 
@@ -296,9 +295,9 @@ are not claimed); replay time windows remain deferred until clocks land.
 - `throwError` treats a function argument as an error factory invoked per
   subscription.
 
-M12 scope notes: numeric delays landed with the timer surface (M14); deprecated
-`retryWhen`/`repeatWhen`/`onErrorResumeNext` and the scheduler argument of
-`throwError` are deferred to the remaining-surface milestone.
+M12 scope notes: numeric delays landed with the timer surface (M14);
+`retryWhen`/`repeatWhen`/`onErrorResumeNext` landed in M17 and the scheduler
+argument of `throwError` in M18.
 
 ## Scheduler kernel (M13)
 
@@ -316,10 +315,11 @@ M12 scope notes: numeric delays landed with the timer surface (M14); deprecated
 - `observeOn` re-emits each notification through owned actions;
   `subscribeOn` defers the act of subscription itself.
 
-M13 scope notes: `animationFrameScheduler`, the deprecated `Scheduler` class
-shape, `scheduled`, and virtual time are deferred (M18 compat-closure
-surfaces);
-work-throw propagation follows the host timer's uncaught path.
+M13 scope notes: `animationFrameScheduler`, the `Scheduler` factory shape,
+`scheduled`, and virtual time landed in M18 (below); work-throw propagation
+follows the host timer's uncaught path. Since M18 the asap batch closes at
+flush start — work admitted during a flush arms the next microtask, as in
+RxJS.
 
 ## Temporal operators (M14)
 
@@ -350,7 +350,7 @@ work-throw propagation follows the host timer's uncaught path.
 
 M14 scope notes: since M16 duration selectors, notifiers, and `with`
 factories take any `ObservableInput`; `delayWhen`'s deprecated
-`subscriptionDelay` argument is deferred to the remaining-surface milestone.
+`subscriptionDelay` argument landed in M18.
 
 ## Boundary & collection (M15)
 
@@ -439,9 +439,9 @@ compat surface (`src/compat/collection.ts`).
   connect selector factories accept any `ObservableInput` at the same sites
   where RxJS converts.
 
-M16 scope notes: deprecated scheduler arguments of
-`from`/`range`/`empty`/`pairs`/`generate` ride `scheduled` (deferred to
-M18); a function carrying `Symbol.observable` is taken as a functional
+M16 scope notes: the deprecated scheduler arguments of
+`from`/`range`/`empty`/`pairs`/`generate` ride `scheduled` (M18); a function
+carrying `Symbol.observable` is taken as a functional
 Observable, not an interop carrier; the jQuery-style handler type drops the
 `this: TContext` typing (kernel purity).
 
@@ -492,11 +492,71 @@ Observable, not an interop carrier; the jQuery-style handler type drops the
   `exhaustAll`.
 
 M17 scope notes: the deprecated trailing-scheduler forms of
-`startWith`/`endWith` ride `scheduled` (deferred to M18 with the other
-scheduler shapes); materialized records are pure data — the deprecated
+`startWith`/`endWith` ride `scheduled` (M18); materialized records are pure
+data — the deprecated
 notification methods live on the compat `Notification` factory records, and
 the kernel and compat complete singletons are distinct (each internally
 reference-stable).
+
+## Compat closure (M18)
+
+- `ConnectableObservable` is a branded callable record over a factory-made
+  Subject: `getSubject` recreates it whenever missing or stopped, `connect()`
+  is idempotent while a connection is open, and the connection's teardown or
+  the source's terminal resets the record — connection first (so the source
+  tears down), terminal delivery second. `refCount` counts subscribers
+  through an internal connection protocol and tears the shared connection
+  down only from the subscriber that observed it being made (RxJS's exact
+  handshake). `multicast` with a selector is `connect`; the `publish` family
+  is `multicast` over one subject per source application (`publishBehavior`
+  / `publishLast` / `publishReplay` reuse that subject across reconnects).
+- Replay windows: a finite `windowTime` interleaves `[value, expiry]` in the
+  replay buffer and trims on every `next` and every subscribe by the
+  provider's clock; `shareReplay` and `publishReplay` pass window and clock
+  through.
+- `combineLatestAll` / `combineAll` / `zipAll` are `toArray` → `mergeMap`
+  into the join function → optional spread projection.
+- `Scheduler` is an action factory plus a clock: `schedule` builds one action
+  per call and schedules it. asap and animationFrame are one batch machine
+  over two host edges (microtask, animation frame): a batch closes at flush
+  start, so work admitted during a flush belongs to the next batch.
+- Virtual time is pure data: actions are queue entries ordered by (absolute
+  frame, creation index); `flush` advances the clock to each entry and runs
+  it while it lies within `maxFrames`; rescheduling a queued action
+  deactivates it and delegates to a child action it owns, so unsubscribing
+  the original cancels the chain; non-finite delays return a closed
+  subscription; a throwing action unwinds the queue (remaining entries
+  unsubscribed) and rethrows.
+- `scheduled` follows `innerFrom`'s probe order with every case as scheduled
+  work: Observables and promises subscribe and re-emit on the scheduler,
+  arrays walk one element per run, iterables and async iterables pull one
+  `next()` per repeating run (the iterator is released on teardown). Every
+  deprecated scheduler argument rides it — `from`, `of`, `range`, `empty`,
+  `pairs`, `generate`, `throwError`, `startWith`, `endWith`, `concat`,
+  `merge`, `combineLatest` (setup and each subscription as scheduled units)
+  — and `delayWhen`'s `subscriptionDelay` prefixes the delayed source with
+  the delay's first emission, ignored.
+- `animationFrames` emits `{timestamp, elapsed}` per frame from the runtime's
+  frame edge; the default instance is shared, a provider makes a fresh one.
+
+M18 deviations: the class-named parity exports are non-constructible
+factories; the batch machine's positive-delay reschedule returns a fresh
+async action and a throwing batch drops its remainder; an emptied frame is
+not cancelled; iterators are released on early teardown under every
+scheduler (RxJS's queue path swallows a crash instead); a virtual action's
+`delay` keeps the absolute frame after unsubscribe.
+
+## Package shape and certification (M19-M20)
+
+- The export map mirrors RxJS 7.8.2 (`types`, `node`, `require`, `es2015`,
+  `default`): Node and `require` see the CommonJS build, bundlers the ES
+  module build, and the `__esModule`/`default` names are the CommonJS
+  interop artifacts that shape produces — measured exactly as the oracle
+  manifest was captured. `rxjs/operators` is provided as a subpath whose
+  seven operator-form names differ from the root creation functions.
+- Export parity is strict and certification is derived: every exported
+  oracle name must be traced by a differential suite, and the matrix is
+  generated from the suites' oracle import lists.
 
 ## Algebraic structures (F8)
 
@@ -542,4 +602,4 @@ policy's algebra separately.
 
 ## Differential evidence
 
-Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contained 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies; the F-work added kernel-operator suites, M06 added 21 selection/gating traces, M07 added 15 flattening-machine traces, M08 added 17 flattening-operator traces, M09 added 19 coordination traces, M10 added 10 subject traces, M11 added 11 sharing traces, M12 added 13 error/resubscription traces, M13 added 7 scheduler traces, M14 added 23 temporal traces, M15 added 42 boundary/collection traces, M16 added 19 creation/interop traces, and M17 adds 16 materialization/operator-tail traces for a current total of 279 differential tests.
+Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contained 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies; the F-work added kernel-operator suites, M06 added 21 selection/gating traces, M07 added 15 flattening-machine traces, M08 added 17 flattening-operator traces, M09 added 19 coordination traces, M10 added 10 subject traces, M11 added 11 sharing traces, M12 added 13 error/resubscription traces, M13 added 7 scheduler traces, M14 added 23 temporal traces, M15 added 42 boundary/collection traces, M16 added 19 creation/interop traces, M17 added 16 materialization/operator-tail traces, and Session 7 adds 32 compat-closure, 1 operators-subpath, and 2 certification traces for a final total of 314 differential tests.

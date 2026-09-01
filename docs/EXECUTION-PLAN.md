@@ -14,7 +14,7 @@ Session 3  M11-M14   ✅ complete (M15 moved to Session 4)
 Session 4  M15       ✅ complete   boundary & collection      → 119/175 (68.0%)
 Session 5  M16       ✅ complete   creation & interop         → 137/175 (78.3%)
 Session 6  M17       ✅ complete   materialization & op tail  → 156/175 (89.1%)
-Session 7  M18-M20   19 features   compat closure + gates     → 175/175 (100%)
+Session 7  M18-M20   ✅ complete   compat closure + gates     → 175/175 (100%)
 ```
 
 # Session 1 — M01-M05 ✅
@@ -198,7 +198,7 @@ matching the oracle. `onErrorResumeNext` advances via teardown (`add` on a
 closed subscriber runs immediately). The deprecated trailing-scheduler
 forms of `startWith`/`endWith` joined the M18 `scheduled` deferrals.
 
-## Session 7 — M18 Compat Closure + M19/M20 gates (19)
+## Session 7 — M18 Compat Closure + M19/M20 gates (19) ✅
 
 Deprecated multicast surface, the remaining scheduler shapes (an rAF edge
 joins `timerHost` in runtime.ts; virtual time reuses the M13 action machine),
@@ -216,8 +216,25 @@ __esModule   default
 
 Then the closing gates, which add no export names:
 
-- **M19 Package parity** — strict subpath/declarations/ESM/CJS compatibility.
-- **M20 Differential certification** — final behavioral/export matrix.
+- **M19 Package parity ✅** — strict subpath/declarations/ESM/CJS compatibility.
+- **M20 Differential certification ✅** — final behavioral/export matrix.
+
+Landed as planned: `ConnectableObservable` is a branded callable record whose
+`refCount` handshake runs over an internal connection-protocol record (the
+functional replacement for RxJS's `_refCount`/`_connection` field access);
+`Scheduler` is an action factory plus a clock; asap and the new
+animationFrame policy share one batch machine over two `timerHost` edges;
+virtual time is a `(frame, index)`-sorted entry queue with child-action
+reschedule chains; `scheduled` follows `innerFrom`'s probe order and carries
+every deprecated scheduler argument deferred since M09 (`from`/`of`/`range`/
+`empty`/`pairs`/`generate`/`throwError`/`startWith`/`endWith`/`concat`/
+`merge`/`combineLatest`, `delayWhen`'s `subscriptionDelay`) plus the replay
+time windows deferred since M10. `__esModule`/`default` are the CommonJS
+interop artifacts of the RxJS-identical export map M19 gives the package —
+measured the way the oracle manifest was captured — and M19 also provides
+the `rxjs/operators` subpath (115/115). M20 makes export parity strict and
+derives `docs/CERTIFICATION-MATRIX.md` from the differential suites' oracle
+imports: 175/175 root names, every one traced.
 
 # Permanent milestone gates
 

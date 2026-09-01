@@ -415,3 +415,51 @@ over `share` with a replay connector; `connectable` is a branded callable
 record carrying an idempotent `connect()`; the `connect` operator multicasts
 per subscription for a selector-built pipeline. State lives per shared-source
 application, in closures.
+
+---
+
+# M18 — Compat closure
+
+The last feature milestone closes the deprecated surface without a class:
+
+```text
+kernel/connectable-observable.ts     ConnectableObservable record + connection protocol; refCount; multicast
+kernel/scheduled.ts                  scheduled: innerFrom's probe order as scheduled work
+kernel/scheduler.ts                  createScheduler (action factory + clock); one batch machine for asap/animationFrame
+kernel/virtual-time.ts               virtual time as a (frame, index)-sorted entry queue; child-action reschedule chains
+kernel/creation/animation-frames.ts  frame-edge Observable with a shared default instance
+kernel/operators/join-all.ts         combineLatestAll / combineAll / zipAll
+compat/multicast.ts                  ConnectableObservable factory, publish family
+compat/scheduler.ts                  Scheduler / VirtualTimeScheduler / VirtualAction factories with their statics
+compat/scheduler-args.ts             popScheduler; of / startWith / endWith with trailing schedulers
+```
+
+RxJS's `refCount` reaches into `_refCount`/`_connection` fields on the
+connectable; here the record carries a symbol-keyed connection protocol
+(`acquire`/`release`/`count`/`connection`/`connect`) — the same pattern as
+the subscription parentage protocol — so the operator stays a pure function
+over a record. `runtime.ts` grows the animation-frame edge and the
+high-resolution clock; the architecture gate confines `requestAnimationFrame`
+/ `cancelAnimationFrame` / `performance` to that module alongside the timers.
+The deprecated scheduler arguments are compat where RxJS pops them from rest
+arguments (`of`, `startWith`, `endWith`, `concat`, `merge`, `combineLatest`)
+and explicit optional parameters on the kernel functions where RxJS's own
+signature names them (`from`, `range`, `empty`, `pairs`, `generate`,
+`throwError`, `delayWhen`).
+
+# M19 — Package shape
+
+`package.json` carries RxJS 7.8.2's entry fields and export map; the
+`rxjs/operators` subpath is `src/operators/index.ts` (root re-exports plus
+`compat/legacy-operators.ts` for the operator-form names).
+`tools/export-names.mjs` is the one door every parity tool uses to look at the
+built package — Node's `import()` of the package name — so the CommonJS
+interop artifacts count identically on both sides; `tools/check-package.mjs`
+cross-checks the import, require, ES-module, and declaration views.
+
+# M20 — Certification
+
+`tools/compare-exports.mjs` is strict and `tools/certification-matrix.mjs`
+derives the per-name evidence (`docs/CERTIFICATION-MATRIX.md`) from the
+differential suites' oracle imports, failing on any uncovered export. The
+matrix and `feature-parity-list.md` are generated artifacts.

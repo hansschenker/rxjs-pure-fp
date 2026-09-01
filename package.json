@@ -4,6 +4,34 @@
   "private": true,
   "description": "A pure functional reimplementation experiment targeting RxJS 7.8.2 behavior without class or inheritance architecture.",
   "type": "module",
+  "main": "./dist/cjs/index.js",
+  "module": "./dist/esm/index.js",
+  "es2015": "./dist/esm/index.js",
+  "types": "./dist/types/index.d.ts",
+  "sideEffects": false,
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md",
+    "THIRD_PARTY_NOTICES.md"
+  ],
+  "exports": {
+    ".": {
+      "types": "./dist/types/index.d.ts",
+      "node": "./dist/cjs/index.js",
+      "require": "./dist/cjs/index.js",
+      "es2015": "./dist/esm/index.js",
+      "default": "./dist/esm/index.js"
+    },
+    "./operators": {
+      "types": "./dist/types/operators/index.d.ts",
+      "node": "./dist/cjs/operators/index.js",
+      "require": "./dist/cjs/operators/index.js",
+      "es2015": "./dist/esm/operators/index.js",
+      "default": "./dist/esm/operators/index.js"
+    },
+    "./package.json": "./package.json"
+  },
   "engines": {
     "node": ">=22"
   },
@@ -15,11 +43,13 @@
     "lint": "node tools/lint-repo.mjs",
     "oracle:exports": "node tools/snapshot-rxjs-exports.mjs",
     "oracle:exports:check": "node tools/check-oracle-exports.mjs",
+    "package:check": "node tools/check-package.mjs",
     "parity:exports": "node tools/compare-exports.mjs",
+    "parity:matrix": "node tools/certification-matrix.mjs",
     "test": "node --test test/unit/*.test.mjs",
     "test:differential": "node --test test/differential/*.test.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "verify": "npm run typecheck && npm run lint && npm run architecture:check && npm run test && npm run test:differential && npm run build && npm run parity:exports && npm run dist:check"
+    "verify": "npm run typecheck && npm run lint && npm run architecture:check && npm run test && npm run test:differential && npm run build && npm run parity:exports && npm run dist:check && npm run package:check && npm run parity:matrix"
   },
   "devDependencies": {
     "@types/node": "^26.4.0",

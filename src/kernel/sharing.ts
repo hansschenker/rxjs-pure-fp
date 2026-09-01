@@ -1,6 +1,7 @@
 import { innerFrom, type ObservableInput } from './interop.ts';
 import { createObservable, executeSource, type Observable } from './observable.ts';
 import { operate, type MonoTypeOperatorFunction, type OperatorFunction } from './operator.ts';
+import type { TimestampProvider } from './scheduler.ts';
 import { createSubscriber, type Subscriber } from './sink.ts';
 import type { Subscription } from './subscription.ts';
 import { createReplaySubject, createSubject, type Subject } from './subject.ts';
@@ -120,25 +121,38 @@ const handleReset = <A extends readonly unknown[]>(
 
 export type ShareReplayConfig = {
   readonly bufferSize?: number;
+  readonly windowTime?: number;
   readonly refCount?: boolean;
+  /** The replay window's clock (RxJS names it `scheduler`; only `now()` is used). */
+  readonly scheduler?: TimestampProvider;
 };
 
 /**
  * Algebra over `share`: a replay connector, no reset on completion, and
- * ref-count-driven reset only when requested. The deprecated time window and
- * scheduler arguments are deferred until clocks land (M13/M14).
+ * ref-count-driven reset only when requested. Since M18 the replay window
+ * carries RxJS's time window and clock, in both the config form and the
+ * deprecated positional `(bufferSize, windowTime, scheduler)` form.
  */
 export function shareReplay<T>(config: ShareReplayConfig): MonoTypeOperatorFunction<T>;
-export function shareReplay<T>(bufferSize?: number): MonoTypeOperatorFunction<T>;
 export function shareReplay<T>(
-  configOrBufferSize?: ShareReplayConfig | number
+  bufferSize?: number,
+  windowTime?: number,
+  scheduler?: TimestampProvider
+): MonoTypeOperatorFunction<T>;
+export function shareReplay<T>(
+  configOrBufferSize?: ShareReplayConfig | number,
+  windowTime?: number,
+  scheduler?: TimestampProvider
 ): MonoTypeOperatorFunction<T> {
-  const { bufferSize = Infinity, refCount = false } =
-    typeof configOrBufferSize === 'object' && configOrBufferSize !== null
-      ? configOrBufferSize
-      : { bufferSize: configOrBufferSize };
+  let bufferSize: number;
+  let refCount = false;
+  if (configOrBufferSize && typeof configOrBufferSize === 'object') {
+    ({ bufferSize = Infinity, windowTime = Infinity, refCount = false, scheduler } = configOrBufferSize);
+  } else {
+    bufferSize = configOrBufferSize ?? Infinity;
+  }
   return share<T>({
-    connector: () => createReplaySubject<T>(bufferSize),
+    connector: () => createReplaySubject<T>(bufferSize, windowTime, scheduler),
     resetOnError: true,
     resetOnComplete: false,
     resetOnRefCountZero: refCount,

@@ -28,6 +28,19 @@ export {
   share,
   shareReplay,
 } from './kernel/sharing.ts';
+export {
+  ConnectableObservable,
+  publish,
+  publishBehavior,
+  publishLast,
+  publishReplay,
+} from './compat/multicast.ts';
+export {
+  createConnectableObservable,
+  multicast,
+  refCount,
+} from './kernel/connectable-observable.ts';
+export type { ConnectableObservable as ConnectableObservableLike } from './kernel/connectable-observable.ts';
 export type {
   Connectable,
   ConnectableConfig,
@@ -74,7 +87,7 @@ export { generate } from './kernel/creation/generate.ts';
 export { iif } from './kernel/creation/iif.ts';
 export { interval } from './kernel/creation/interval.ts';
 export { NEVER, never } from './kernel/creation/never.ts';
-export { of } from './kernel/creation/of.ts';
+export { endWith, of, startWith } from './compat/scheduler-args.ts';
 export { pairs } from './kernel/creation/pairs.ts';
 export { range } from './kernel/creation/range.ts';
 export { throwError } from './kernel/creation/throw-error.ts';
@@ -105,18 +118,33 @@ export type {
   GenerateOptions,
 } from './kernel/creation/generate.ts';
 export {
+  animationFrameScheduler,
+  animationFrameScheduler as animationFrame,
   asapScheduler,
   asapScheduler as asap,
   asyncScheduler,
   asyncScheduler as async,
+  createScheduler,
   queueScheduler,
   queueScheduler as queue,
 } from './kernel/scheduler.ts';
 export type {
   Scheduler as SchedulerLike,
   SchedulerAction,
+  SchedulerActionFactory,
   SchedulerWork,
 } from './kernel/scheduler.ts';
+export { Scheduler, VirtualAction, VirtualTimeScheduler } from './compat/scheduler.ts';
+export { createVirtualTimeScheduler } from './kernel/virtual-time.ts';
+export type {
+  VirtualActionFactory,
+  VirtualAction as VirtualActionLike,
+  VirtualTimeConfig,
+  VirtualTimeScheduler as VirtualTimeSchedulerLike,
+} from './kernel/virtual-time.ts';
+export { scheduled } from './kernel/scheduled.ts';
+export { animationFrames } from './kernel/creation/animation-frames.ts';
+export type { AnimationFrame } from './kernel/creation/animation-frames.ts';
 export { catchError } from './kernel/operators/catch-error.ts';
 export { observeOn } from './kernel/operators/observe-on.ts';
 export { subscribeOn } from './kernel/operators/subscribe-on.ts';
@@ -170,6 +198,7 @@ export { raceWith } from './kernel/operators/race-with.ts';
 export { switchAll } from './kernel/operators/switch-all.ts';
 export { switchScan } from './kernel/operators/switch-scan.ts';
 export { zipWith } from './kernel/operators/zip-with.ts';
+export { combineAll, combineLatestAll, zipAll } from './kernel/operators/join-all.ts';
 export { Notification, NotificationKind } from './compat/notification.ts';
 export { materialize } from './kernel/operators/materialize.ts';
 export { dematerialize } from './kernel/operators/dematerialize.ts';
@@ -177,8 +206,6 @@ export { timeInterval } from './kernel/operators/time-interval.ts';
 export type { TimeInterval } from './kernel/operators/time-interval.ts';
 export { timestamp } from './kernel/operators/timestamp.ts';
 export type { Timestamp, TimestampProvider } from './kernel/operators/timestamp.ts';
-export { startWith } from './kernel/operators/start-with.ts';
-export { endWith } from './kernel/operators/end-with.ts';
 export { ignoreElements } from './kernel/operators/ignore-elements.ts';
 export { mapTo } from './kernel/operators/map-to.ts';
 export { pluck } from './kernel/operators/pluck.ts';

@@ -1,21 +1,24 @@
 # Feature Parity List
 
 Root export parity of `rxjs-pure-fp` against the pinned behavioral oracle
-`rxjs@7.8.2`, generated from `reference/exports.json` and the built
-`dist/esm/index.js` after **M17 — Materialization & Operator Tail**.
+`rxjs@7.8.2`, generated from `reference/exports.json` and Node's view of the
+built package by `tools/certification-matrix.mjs` after **M20 — Differential
+Certification**.
 
-**Implemented: 156 / 175 root exports (89.1%)** — 0 unexpected exports.
+**Implemented: 175 / 175 root exports (100.0%)** — 0 unexpected exports.
+The `rxjs/operators` subpath is provided as well: 115 / 115 names.
 
 An implemented name means the export exists with differentially certified
 behavior for its claimed scope (see `docs/RXJS-7.8.2-PARITY.md` for
-per-milestone certified scope and recorded deferrals).
+per-milestone certified scope and recorded deviations, and
+`docs/CERTIFICATION-MATRIX.md` for the per-name certification evidence).
 
 | Implemented (rxjs-pure-fp) | Original (rxjs@7.8.2) |
 | --- | --- |
 | `ArgumentOutOfRangeError` ✅ | `ArgumentOutOfRangeError` |
 | `AsyncSubject` ✅ | `AsyncSubject` |
 | `BehaviorSubject` ✅ | `BehaviorSubject` |
-| — | `ConnectableObservable` |
+| `ConnectableObservable` ✅ | `ConnectableObservable` |
 | `EMPTY` ✅ | `EMPTY` |
 | `EmptyError` ✅ | `EmptyError` |
 | `NEVER` ✅ | `NEVER` |
@@ -25,19 +28,19 @@ per-milestone certified scope and recorded deferrals).
 | `ObjectUnsubscribedError` ✅ | `ObjectUnsubscribedError` |
 | `Observable` ✅ | `Observable` |
 | `ReplaySubject` ✅ | `ReplaySubject` |
-| — | `Scheduler` |
+| `Scheduler` ✅ | `Scheduler` |
 | `SequenceError` ✅ | `SequenceError` |
 | `Subject` ✅ | `Subject` |
 | `Subscriber` ✅ | `Subscriber` |
 | `Subscription` ✅ | `Subscription` |
 | `TimeoutError` ✅ | `TimeoutError` |
 | `UnsubscriptionError` ✅ | `UnsubscriptionError` |
-| — | `VirtualAction` |
-| — | `VirtualTimeScheduler` |
-| — | `__esModule` |
-| — | `animationFrame` |
-| — | `animationFrameScheduler` |
-| — | `animationFrames` |
+| `VirtualAction` ✅ | `VirtualAction` |
+| `VirtualTimeScheduler` ✅ | `VirtualTimeScheduler` |
+| `__esModule` ✅ | `__esModule` |
+| `animationFrame` ✅ | `animationFrame` |
+| `animationFrameScheduler` ✅ | `animationFrameScheduler` |
+| `animationFrames` ✅ | `animationFrames` |
 | `asap` ✅ | `asap` |
 | `asapScheduler` ✅ | `asapScheduler` |
 | `async` ✅ | `async` |
@@ -52,9 +55,9 @@ per-milestone certified scope and recorded deferrals).
 | `bufferToggle` ✅ | `bufferToggle` |
 | `bufferWhen` ✅ | `bufferWhen` |
 | `catchError` ✅ | `catchError` |
-| — | `combineAll` |
+| `combineAll` ✅ | `combineAll` |
 | `combineLatest` ✅ | `combineLatest` |
-| — | `combineLatestAll` |
+| `combineLatestAll` ✅ | `combineLatestAll` |
 | `combineLatestWith` ✅ | `combineLatestWith` |
 | `concat` ✅ | `concat` |
 | `concatAll` ✅ | `concatAll` |
@@ -67,7 +70,7 @@ per-milestone certified scope and recorded deferrals).
 | `count` ✅ | `count` |
 | `debounce` ✅ | `debounce` |
 | `debounceTime` ✅ | `debounceTime` |
-| — | `default` |
+| `default` ✅ | `default` |
 | `defaultIfEmpty` ✅ | `defaultIfEmpty` |
 | `defer` ✅ | `defer` |
 | `delay` ✅ | `delay` |
@@ -116,7 +119,7 @@ per-milestone certified scope and recorded deferrals).
 | `mergeScan` ✅ | `mergeScan` |
 | `mergeWith` ✅ | `mergeWith` |
 | `min` ✅ | `min` |
-| — | `multicast` |
+| `multicast` ✅ | `multicast` |
 | `never` ✅ | `never` |
 | `noop` ✅ | `noop` |
 | `observable` ✅ | `observable` |
@@ -129,17 +132,17 @@ per-milestone certified scope and recorded deferrals).
 | `partition` ✅ | `partition` |
 | `pipe` ✅ | `pipe` |
 | `pluck` ✅ | `pluck` |
-| — | `publish` |
-| — | `publishBehavior` |
-| — | `publishLast` |
-| — | `publishReplay` |
+| `publish` ✅ | `publish` |
+| `publishBehavior` ✅ | `publishBehavior` |
+| `publishLast` ✅ | `publishLast` |
+| `publishReplay` ✅ | `publishReplay` |
 | `queue` ✅ | `queue` |
 | `queueScheduler` ✅ | `queueScheduler` |
 | `race` ✅ | `race` |
 | `raceWith` ✅ | `raceWith` |
 | `range` ✅ | `range` |
 | `reduce` ✅ | `reduce` |
-| — | `refCount` |
+| `refCount` ✅ | `refCount` |
 | `repeat` ✅ | `repeat` |
 | `repeatWhen` ✅ | `repeatWhen` |
 | `retry` ✅ | `retry` |
@@ -147,7 +150,7 @@ per-milestone certified scope and recorded deferrals).
 | `sample` ✅ | `sample` |
 | `sampleTime` ✅ | `sampleTime` |
 | `scan` ✅ | `scan` |
-| — | `scheduled` |
+| `scheduled` ✅ | `scheduled` |
 | `sequenceEqual` ✅ | `sequenceEqual` |
 | `share` ✅ | `share` |
 | `shareReplay` ✅ | `shareReplay` |
@@ -185,7 +188,7 @@ per-milestone certified scope and recorded deferrals).
 | `windowWhen` ✅ | `windowWhen` |
 | `withLatestFrom` ✅ | `withLatestFrom` |
 | `zip` ✅ | `zip` |
-| — | `zipAll` |
+| `zipAll` ✅ | `zipAll` |
 | `zipWith` ✅ | `zipWith` |
 
 ## Deliberate functional extensions (not counted as parity)
@@ -194,11 +197,14 @@ per-milestone certified scope and recorded deferrals).
 | --- |
 | `createAsyncSubject` |
 | `createBehaviorSubject` |
+| `createConnectableObservable` |
 | `createObservable` |
 | `createReplaySubject` |
+| `createScheduler` |
 | `createSubject` |
 | `createSubscriber` |
 | `createSubscription` |
+| `createVirtualTimeScheduler` |
 | `emitNone` |
 | `emitOne` |
 | `filterSink` |

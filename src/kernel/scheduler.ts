@@ -9,7 +9,9 @@ import {
  * M13 scheduler kernel: one reschedulable action machine over the runtime's
  * `timerHost` edge, with execution-time policies as scheduler records —
  * async (interval-backed actions with id recycling), queue (synchronous
- * trampoline at zero delay), asap (microtask-batched at zero delay).
+ * trampoline at zero delay), asap (microtask-batched at zero delay), and
+ * since M18 animationFrame (frame-batched at zero delay) — the latter two are
+ * one batch machine over different host edges.
  *
  * Work receives its action as a parameter instead of RxJS's `this` binding:
  * `(state, action) => void`, rescheduling via `action.schedule(state, delay)`.
@@ -23,6 +25,37 @@ export type SchedulerWork<S> = (state: S | undefined, action: SchedulerAction<S>
 export type Scheduler = {
   readonly now: () => number;
   readonly schedule: <S>(work: SchedulerWork<S>, delay?: number, state?: S) => Subscription;
+};
+
+/** Anything with a clock: schedulers double as timestamp providers, as in RxJS. */
+export type TimestampProvider = {
+  readonly now: () => number;
+};
+
+/** RxJS `dateTimestampProvider` without the test-scheduler delegate hook. */
+export const dateTimestampProvider: TimestampProvider = Object.freeze({ now: () => timerHost.now() });
+
+/**
+ * M18: the functional stand-in for RxJS's `Scheduler` base class — an action
+ * factory plus a clock. Each `schedule` call builds one action and schedules
+ * it, exactly `new SchedulerAction(this, work).schedule(state, delay)`.
+ */
+export type SchedulerActionFactory = <S>(
+  scheduler: Scheduler,
+  work: SchedulerWork<S>
+) => SchedulerAction<S>;
+
+export const createScheduler = (
+  createAction: SchedulerActionFactory,
+  now: () => number = dateTimestampProvider.now
+): Scheduler => {
+  let scheduler!: Scheduler;
+  scheduler = Object.freeze({
+    now,
+    schedule: <S>(work: SchedulerWork<S>, delay = 0, state?: S): Subscription =>
+      createAction(scheduler, work).schedule(state, delay),
+  });
+  return scheduler;
 };
 
 /**
@@ -106,11 +139,7 @@ const createAsyncAction = <S>(work: SchedulerWork<S>): SchedulerAction<S> => {
   return action;
 };
 
-export const asyncScheduler: Scheduler = Object.freeze({
-  now: timerHost.now,
-  schedule: <S>(work: SchedulerWork<S>, delay = 0, state?: S): Subscription =>
-    createAsyncAction(work).schedule(state, delay),
-});
+export const asyncScheduler: Scheduler = createScheduler((_scheduler, work) => createAsyncAction(work));
 
 /** Builds a zero-delay action whose runs are admitted through `admit`. */
 const createDeferredAction = <S>(
@@ -161,7 +190,7 @@ const createQueueScheduler = (): Scheduler => {
     }
   };
   return Object.freeze({
-    now: timerHost.now,
+    now: dateTimestampProvider.now,
     schedule: <S>(work: SchedulerWork<S>, delay = 0, state?: S): Subscription =>
       delay > 0
         ? asyncScheduler.schedule(work, delay, state)
@@ -169,35 +198,51 @@ const createQueueScheduler = (): Scheduler => {
   });
 };
 
-const createAsapScheduler = (): Scheduler => {
-  const pending: Array<() => void> = [];
-  let flushArmed = false;
-  const batch = (run: () => void): void => {
-    pending.push(run);
-    if (flushArmed) {
+/**
+ * One batch machine for the two host-batched policies. Work admitted while
+ * no batch is armed arms one through `request`; when the host fires it, the
+ * batch is closed *before* running, so work admitted during the flush arms
+ * the next batch (RxJS clears `_scheduled` at flush start and runs only the
+ * actions carrying that flush id). A throw drops the rest of the batch and
+ * follows the host's uncaught path.
+ */
+const createBatchScheduler = (request: (flush: () => void) => void): Scheduler => {
+  let batch: Array<() => void> = [];
+  let armed = false;
+  const admit = (run: () => void): void => {
+    batch.push(run);
+    if (armed) {
       return;
     }
-    flushArmed = true;
-    timerHost.microtask(() => {
-      try {
-        while (pending.length > 0) {
-          (pending.shift() as () => void)();
-        }
-      } finally {
-        flushArmed = false;
-        pending.length = 0;
+    armed = true;
+    request(() => {
+      armed = false;
+      const current = batch;
+      batch = [];
+      for (const scheduledRun of current) {
+        scheduledRun();
       }
     });
   };
   return Object.freeze({
-    now: timerHost.now,
+    now: dateTimestampProvider.now,
     schedule: <S>(work: SchedulerWork<S>, delay = 0, state?: S): Subscription =>
       delay > 0
         ? asyncScheduler.schedule(work, delay, state)
-        : createDeferredAction(work, batch, state),
+        : createDeferredAction(work, admit, state),
   });
 };
 
 export const queueScheduler: Scheduler = createQueueScheduler();
 
-export const asapScheduler: Scheduler = createAsapScheduler();
+/** Microtask-batched at zero delay (RxJS `AsapScheduler` over its promise-based `Immediate`). */
+export const asapScheduler: Scheduler = createBatchScheduler((flush) => timerHost.microtask(flush));
+
+/**
+ * M18: frame-batched at zero delay over the runtime's animation-frame edge —
+ * everything admitted before a frame fires runs in that frame, in admission
+ * order; work admitted during a frame belongs to the next one.
+ */
+export const animationFrameScheduler: Scheduler = createBatchScheduler((flush) => {
+  timerHost.requestFrame(flush);
+});

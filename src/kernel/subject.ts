@@ -1,5 +1,6 @@
 import { createObjectUnsubscribedError } from './errors.ts';
 import { createObservable, setSubscribePreflight, type Observable } from './observable.ts';
+import { dateTimestampProvider, type TimestampProvider } from './scheduler.ts';
 import type { Observer, PartialObserver, Subscriber } from './sink.ts';
 import { EMPTY_SUBSCRIPTION, createSubscription, type TeardownLogic } from './subscription.ts';
 
@@ -216,27 +217,56 @@ export const createBehaviorSubject = <T>(initialValue: T): BehaviorSubject<T> =>
 };
 
 /**
- * Hub + replay-buffer policy (size window). The deprecated time window and
- * timestamp provider are deferred until clocks land (M13/M14).
+ * Hub + replay-buffer policy: a size window and, since M18, RxJS's time
+ * window over a timestamp provider. A finite window interleaves each value
+ * with its expiry (`[value, expiry, value, expiry, ...]`) exactly as RxJS's
+ * flat buffer does, and trimming runs on every `next` and every subscribe.
  */
-export const createReplaySubject = <T>(bufferSize = Infinity): Subject<T> => {
+export const createReplaySubject = <T>(
+  bufferSize = Infinity,
+  windowTime = Infinity,
+  timestampProvider: TimestampProvider = dateTimestampProvider
+): Subject<T> => {
+  const infiniteTimeWindow = windowTime === Infinity;
   const max = Math.max(1, bufferSize);
-  const buffer: T[] = [];
+  const window = Math.max(1, windowTime);
+  const buffer: Array<T | number> = [];
+  const stride = infiniteTimeWindow ? 1 : 2;
+
+  const trimBuffer = (): void => {
+    const adjustedBufferSize = stride * max;
+    if (max < Infinity && adjustedBufferSize < buffer.length) {
+      buffer.splice(0, buffer.length - adjustedBufferSize);
+    }
+    if (!infiniteTimeWindow) {
+      const now = timestampProvider.now();
+      let last = 0;
+      for (let index = 1; index < buffer.length && (buffer[index] as number) <= now; index += 2) {
+        last = index;
+      }
+      if (last) {
+        buffer.splice(0, last + 1);
+      }
+    }
+  };
+
   return buildSubject<T>({
     next: (value, hub) => {
       if (!hub.isStopped()) {
         buffer.push(value);
-        if (buffer.length > max) {
-          buffer.splice(0, buffer.length - max);
+        if (!infiniteTimeWindow) {
+          buffer.push(timestampProvider.now() + window);
         }
       }
+      trimBuffer();
       hub.broadcast(value);
     },
     subscribeSelf: (subscriber, hub) => {
       hub.throwIfClosed();
+      trimBuffer();
       const teardown = hub.register(subscriber);
       const copy = buffer.slice();
-      for (let index = 0; index < copy.length && !subscriber.closed; index += 1) {
+      for (let index = 0; index < copy.length && !subscriber.closed; index += stride) {
         subscriber.next(copy[index] as T);
       }
       hub.deliverFinalized(subscriber);

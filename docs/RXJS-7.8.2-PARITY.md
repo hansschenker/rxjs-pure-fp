@@ -1,29 +1,35 @@
 # RxJS 7.8.2 Parity
 
-## Current milestone: M17 — Materialization & Operator Tail (Session 6 complete)
+## Current milestone: M20 — Differential Certification (Session 7 complete)
 
-Sessions 1 (M01-M05), 2 (M06-M10), 3 (M11-M14), 4 (M15), 5 (M16), and 6
-(M17) are complete. Between M05 and M06, the F1-F8 functional-deepening work
-(docs/FP-ROADMAP.md) restructured the source into `src/kernel/**` and
-`src/compat/**` without changing behavioral scope. M17 lands notifications
-as data (`materialize`/`dematerialize` plus the deprecated `Notification`
-surface), stream metadata (`timeInterval`/`timestamp`), the deprecated
-operator algebra tail, and the M12-deferral resubscription names
-(`retryWhen`/`repeatWhen`/`onErrorResumeNext`).
+Sessions 1 (M01-M05), 2 (M06-M10), 3 (M11-M14), 4 (M15), 5 (M16), 6 (M17),
+and 7 (M18-M20) are complete. Between M05 and M06, the F1-F8
+functional-deepening work (docs/FP-ROADMAP.md) restructured the source into
+`src/kernel/**` and `src/compat/**` without changing behavioral scope. M18
+closes the compat surface — the deprecated multicast family, the remaining
+scheduler shapes (`Scheduler`, `scheduled`, animation frames, virtual time),
+the join-all aliases, every deprecated scheduler argument recorded as a
+deferral since M09, and the replay time windows deferred since M10. M19
+gives the package RxJS's shape (export map, CommonJS/ESM/declarations, the
+`rxjs/operators` subpath). M20 makes export parity strict and derives the
+per-name certification matrix from the differential suites.
 
-| Dimension | M17 status |
+| Dimension | M20 status |
 | --- | --- |
 | Behavioral oracle | pinned `rxjs@7.8.2` |
-| Architecture gate | passes across 145 TypeScript source files |
-| Unit tests | 199 / 199 |
-| Differential tests | 279 / 279 total |
-| New M17 differential traces | 16 |
-| RxJS root exports implemented | 156 / 175 = 89.1% |
-| Functional root extensions | 17 |
+| Architecture gate | passes across 155 TypeScript source files |
+| Unit tests | 213 / 213 |
+| Differential tests | 314 / 314 total |
+| New Session 7 differential traces | 35 (32 M18, 1 M19, 2 M20) |
+| RxJS root exports implemented | 175 / 175 = 100% |
+| `rxjs/operators` subpath exports | 115 / 115 = 100% |
+| Functional root extensions | 20 |
 | Unexpected root exports | 0 |
-| Distribution architecture | passes across 290 emitted JavaScript files |
+| Distribution architecture | passes across 310 emitted JavaScript files |
+| Package parity gate | passes (import / require / ESM file / declarations agree) |
+| Certification matrix | every exported name traced (`docs/CERTIFICATION-MATRIX.md`) |
 
-## Root parity exports through M17
+## Root parity exports through M20
 
 ### Runtime/core
 
@@ -133,6 +139,12 @@ operator algebra tail, and the M12-deferral resubscription names
 - `asyncScheduler` / `async`
 - `asapScheduler` / `asap`
 - `queueScheduler` / `queue`
+- `animationFrameScheduler` / `animationFrame`
+- `Scheduler`
+- `scheduled`
+- `animationFrames`
+- `VirtualTimeScheduler`
+- `VirtualAction`
 - `observeOn`
 - `subscribeOn`
 
@@ -169,6 +181,13 @@ operator algebra tail, and the M12-deferral resubscription names
 - `shareReplay`
 - `connectable`
 - `connect`
+- `ConnectableObservable`
+- `multicast`
+- `refCount`
+- `publish`
+- `publishBehavior`
+- `publishLast`
+- `publishReplay`
 
 ### Coordination
 
@@ -184,6 +203,9 @@ operator algebra tail, and the M12-deferral resubscription names
 - `combineLatestWith`
 - `zipWith`
 - `raceWith`
+- `combineLatestAll`
+- `combineAll`
+- `zipAll`
 
 ### Boundary
 
@@ -229,6 +251,13 @@ operator algebra tail, and the M12-deferral resubscription names
 - `isEmpty`
 - `sequenceEqual`
 
+### Package shape
+
+- `__esModule`
+- `default`
+
+(The CommonJS interop artifacts of the RxJS-identical export map — see M19.)
+
 ## Functional root extensions
 
 Tracked separately and excluded from the RxJS parity numerator:
@@ -249,6 +278,10 @@ Tracked separately and excluded from the RxJS parity numerator:
 - `statefulOperator`
 - `emitNone`
 - `emitOne`
+- `innerFrom`
+- `createConnectableObservable`
+- `createScheduler`
+- `createVirtualTimeScheduler`
 
 ## M05 certified scope
 
@@ -479,7 +512,8 @@ Certified for: companion-before-source subscription order; gating until all
 companions have emitted; ignored companion completions; project overload.
 
 **Scope notes / deviations:** since M16 inputs accept any `ObservableInput`;
-deprecated scheduler arguments deferred to M18;
+the deprecated scheduler arguments of `combineLatest`/`concat`/`merge`
+landed in M18;
 trailing rest sources must be branded (kernel-created) Observables on the
 selector-capable compat surfaces because Observables are functions in this
 representation — array forms carry raw-function sources.
@@ -508,7 +542,7 @@ subscriber delivery.
 
 **Deviations:** `BehaviorSubject.value` is a live snapshot data property
 (non-throwing; `getValue()` carries the throwing contract); `ReplaySubject`
-time windows are deferred until clocks land; subject methods do not
+time windows landed in M18; subject methods do not
 participate in the deprecated synchronous error context; subjects are mutable
 hub records (the documented sharing topology) and are not frozen.
 
@@ -533,8 +567,116 @@ hub records (the documented sharing topology) and are not frozen.
 - M15: 42 boundary/collection traces
 - M16: 19 creation/interop traces
 - M17: 16 materialization/operator-tail traces
+- M18: 32 compat-closure traces
+- M19: 1 operators-subpath trace
+- M20: 2 certification traces
 
-Total: **279 / 279** differential tests.
+Total: **314 / 314** differential tests.
+
+## M18 certified scope
+
+`ConnectableObservable` / `multicast` / `refCount`: subscribers attach to a
+factory-made Subject recreated whenever missing or stopped; idempotent
+`connect()` while a connection is open; connection teardown, source
+completion, and source error all reset the record (`_teardown` order: the
+connection is unsubscribed — so the source tears down — before the subject's
+terminal is delivered); a synchronously completing source returns a closed
+connection and reconnects on the next `connect()`; a subject instance passed
+to `multicast` is reused stopped (late subscribers complete, reconnected
+values are dropped); `refCount` (operator and `.refCount()` method) connects
+on the first subscriber and disconnects on the last with RxJS's exact
+handshake (only the subscriber that observed the connection being made tears
+it down); `multicast(subject, selector)` is `connect`. `publish` (with and
+without selector), `publishBehavior` (current value on subscribe, no value
+after completion), `publishLast` (last value replayed to late subscribers),
+`publishReplay` (size window, selector form, deprecated clock in the
+selector position). Replay time windows: `ReplaySubject(size, windowTime,
+provider)` trimming on every `next` and every subscribe by the provider's
+clock (certified on a manual clock), `shareReplay`'s config and positional
+`(bufferSize, windowTime, scheduler)` forms, `publishReplay` windows.
+`combineLatestAll` / `combineAll` (same reference) / `zipAll`: collected
+inner inputs (Observables and arrays) joined on outer completion, with and
+without projection, empty outer sources. `Scheduler`: action factory plus
+clock (the factory receives the scheduler record and the work; the
+`Scheduler.now` static). `scheduled`: every input kind (array, string,
+iterable, Observable, promise, async iterable) under the queue trampoline
+(synchronous traces) and asap (one element per microtask, interleaved with
+other microtasks), iterator throws to the error channel, RxJS's exact
+`TypeError` for unconvertible inputs, iterator release on early teardown
+(asap path). The deprecated scheduler arguments, all over `scheduled` under
+the queue scheduler: `from`, `of` (including `of(scheduler)`), `range`,
+`empty`, `pairs`, `generate` (options field, positional after `iterate`,
+positional after `resultSelector`), `throwError`, `startWith`, `endWith`,
+`concat`, `merge` (with and without `concurrent`; the single-source form
+ignores the scheduler, as RxJS does), `combineLatest` (including the
+empty-array form); `delayWhen`'s `subscriptionDelay`. Virtual time:
+`(frame, index)` execution order with nested schedules,
+`now()`/`frame`/`index`/`maxFrames`, reschedule chains through child actions
+and their cancellation via the original action, non-finite delays returning
+a closed subscription, the `maxFrames` cut-off, work throws unwinding the
+queue (remaining actions unsubscribed, error rethrown, frame left at the
+failing action), `timer`/`interval` over virtual time, direct `VirtualAction`
+construction (`index`, `delay`, `closed` after execution),
+`VirtualAction.sortActions`, `VirtualTimeScheduler.frameTimeFactor`.
+`animationFrameScheduler` / `animationFrame` (same reference): per-frame
+batching (work admitted during a frame runs in the next one), zero-delay
+reschedule chains one per frame, pre-frame cancellation, positive delays on
+the async path; `animationFrames`: the shared default instance,
+`{timestamp, elapsed}` records from a custom provider (deterministic) and
+from the frame callback.
+
+**Deviations/deferrals:** `ConnectableObservable`, `Scheduler`,
+`VirtualTimeScheduler`, and `VirtualAction` are non-constructible functional
+factories carrying the class statics as properties; `refCount` reads an
+internal connection-protocol record instead of `_refCount`/`_connection`
+fields and rejects non-connectable sources with its own `TypeError`; asap and
+animationFrame share one batch machine whose zero-delay action, rescheduled
+at a positive delay, returns a fresh async action rather than itself, and a
+throwing batch drops (rather than unsubscribes) its remainder; an emptied
+animation frame is not cancelled (the flush is a no-op); `scheduleIterable`
+releases the iterator on early teardown under every scheduler — RxJS's queue
+action loses its scheduler reference when unsubscribed mid-trampoline,
+throws inside the flush, and never returns the teardown (a swallowed crash;
+certified on the asap path only); a virtual action's `delay` keeps the
+absolute frame after unsubscribe (RxJS nulls it); `scheduleAsyncIterable`
+keeps RxJS's unhandled rejection of a failing async iterator; replay windows
+interleave `[value, expiry]` in one buffer exactly as RxJS, on a subject
+record that stays a mutable hub.
+
+## M19 package parity
+
+The package has RxJS 7.8.2's shape: `main`/`module`/`es2015`/`types`, an
+export map whose conditions are `types`, `node`, `require`, `es2015`,
+`default` in RxJS's order (Node and `require` resolve to the CommonJS build,
+bundlers to the ES module build), `./package.json`, and the `./operators`
+subpath (`src/operators/index.ts`, generated against the oracle list: the
+root operators re-exported plus the seven operator-form names —
+`combineLatest`, `concat`, `merge`, `zip`, `race`, `partition`,
+`onErrorResumeNext` — from `src/compat/legacy-operators.ts`). The two
+remaining oracle names, `__esModule` and `default`, are exactly what this
+shape produces: the oracle manifest was captured by importing `rxjs` through
+Node, which resolves the `node` condition to CommonJS and exposes the interop
+artifacts; this package is measured through the same door
+(`tools/export-names.mjs`). `tools/check-package.mjs` gates it: the
+export-map shape, and for each implemented subpath the Node import view, the
+`require` view, the ES module file's own namespace, and the declaration
+file's value exports (through the TypeScript checker, diagnostics included)
+must agree. The operator forms are differentially certified
+(`operators-subpath` suite). Out of scope, and reported as such by the tools:
+`./ajax`, `./fetch`, `./testing`, `./webSocket` — separate feature surfaces
+never part of the 175-name mission.
+
+## M20 differential certification
+
+`tools/compare-exports.mjs` is strict: a missing or unexpected export on any
+implemented subpath fails `npm run verify`. `tools/certification-matrix.mjs`
+derives `docs/CERTIFICATION-MATRIX.md` and `feature-parity-list.md` from the
+oracle manifest, Node's view of the built package, and the oracle import
+lists of every differential suite, and fails on any exported oracle name no
+suite traces; the `certification` suite closes the last twelve (the error
+factories' identities and messages, the scheduler alias names, `identity`,
+`noop`). Newer Node versions add a `module.exports` name to CommonJS
+namespaces; the snapshot and parity tools exclude it as a Node artifact.
 
 ## M17 certified scope
 
@@ -573,8 +715,8 @@ and single-array forms. `exhaust`: the same function reference as
 `exhaustAll` on both sides.
 
 **Deviations/deferrals:** the deprecated trailing-scheduler forms of
-`startWith`/`endWith` ride `scheduled` and are deferred to M18 with the
-other scheduler shapes; `Notification` is a non-constructible functional
+`startWith`/`endWith` landed in M18 over `scheduled`; `Notification` is a
+non-constructible functional
 factory (call form, no `new`), its records are frozen, and its deprecated
 methods are non-enumerable own properties rather than prototype methods;
 `materialize` emits pure data records — the deprecated method surface lives
@@ -626,8 +768,8 @@ recovery/fallback factories (`catchError`, `timeout`/`timeoutWith`,
 factories.
 
 **Deviations/deferrals:** the deprecated scheduler arguments of `from`,
-`range`, `empty`, `pairs`, and `generate` ride `scheduled` and are deferred
-to M18; a function carrying `Symbol.observable` is used as a functional
+`range`, `empty`, `pairs`, and `generate` landed in M18 over `scheduled`; a
+function carrying `Symbol.observable` is used as a functional
 Observable, not an interop carrier (functions are Observables in this
 representation); `isObservable` answers the construction brand — the
 representational analog of RxJS's `instanceof` check — so raw unbranded
@@ -697,8 +839,8 @@ the M12 deferral).
 
 **Deviations/deferrals:** since M16, duration selectors, notifiers, and
 `with` factories accept any `ObservableInput`;
-`delayWhen`'s deprecated `subscriptionDelay` argument deferred to the
-remaining-surface milestone; `TimeoutError` is a functional factory over
+`delayWhen`'s deprecated `subscriptionDelay` argument landed in M18;
+`TimeoutError` is a functional factory over
 platform `Error` (identity via `name`), like the other parity errors.
 
 ## M13 certified scope
@@ -710,7 +852,8 @@ pre-fire cancellation of async and asap actions; `observeOn` asynchronous
 re-emission with completion; `subscribeOn` deferred subscription. RxJS's
 `this`-bound work signature is adapted to `(state, action)` (recorded
 functional deviation); `animationFrameScheduler`, `Scheduler`, `scheduled`,
-`TimestampProvider` inputs, and virtual time are deferred.
+and virtual time landed in M18, which also closed the asap batch at flush
+start (work admitted mid-flush runs in the next microtask, as in RxJS).
 
 ## M12 certified scope
 
@@ -725,8 +868,8 @@ delays with repeat counts. `throwError`: per-subscription factory invocation
 and plain-value form.
 
 **Deviations/deferrals:** numeric delays landed with the M14 timer surface;
-`retryWhen`/`repeatWhen`/`onErrorResumeNext` and `throwError`'s scheduler
-argument deferred to the remaining-surface milestone.
+`retryWhen`/`repeatWhen`/`onErrorResumeNext` landed in M17 and `throwError`'s
+scheduler argument in M18.
 
 ## M11 certified scope
 
@@ -742,14 +885,14 @@ disconnect teardown, fresh-subject reconnect. `connect`: one source run
 multicast into a selector pipeline using the shared view twice.
 
 **Deviations:** connection/notifier observers are raw kernel subscribers
-(safe-boundary handler-throw edges not claimed); replay time windows and
-scheduler arguments deferred until clocks land.
+(safe-boundary handler-throw edges not claimed); replay time windows and the
+`shareReplay` clock argument landed in M18.
 
 ## Interpretation of export parity
 
-The current 137/175 score measures root-name coverage only. It is not a direct percentage of engineering completion.
+The 175/175 score measures root-name coverage: every name exists, and `docs/CERTIFICATION-MATRIX.md` records which differential suites certify each one. It is still not a claim of bit-for-bit equivalence — the recorded deviations stand.
 
-A root export can also have intentionally deferred overload/interoperability scope. Such gaps are recorded explicitly rather than hidden by the export count.
+A root export can also have intentionally narrowed overload/interoperability scope. Such gaps are recorded explicitly rather than hidden by the export count.
 
 ## Intentional architectural deviations
 
@@ -765,7 +908,7 @@ Feature capability and observable behavior are the compatibility target.
 
 ## Final policy
 
-M19-M20 make full package/export parity strict. Until then every milestone must maintain:
+Since M19-M20, package/export parity is strict: `npm run verify` fails on any missing or unexpected export of an implemented subpath, on any disagreement between the package's import, require, ES-module, and declaration views, and on any exported oracle name without differential coverage. Every milestone must maintain:
 
 - explicit semantic scope;
 - zero accidental unexpected root exports;

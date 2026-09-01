@@ -1,11 +1,14 @@
 import type { Observable } from '../observable.ts';
 import { identity } from '../pipe.ts';
+import { scheduleIterable } from '../scheduled.ts';
+import { isScheduler, type Scheduler } from '../scheduler.ts';
 import { defer } from './defer.ts';
 
 export type GenerateBaseOptions<S> = {
   readonly initialState: S;
   readonly condition?: ((state: S) => boolean) | undefined;
   readonly iterate: (state: S) => S;
+  readonly scheduler?: Scheduler | undefined;
 };
 
 export type GenerateOptions<T, S> = GenerateBaseOptions<S> & {
@@ -17,31 +20,39 @@ export type GenerateOptions<T, S> = GenerateBaseOptions<S> & {
  * resultSelector)` subscribed through `defer`, exactly RxJS's construction.
  * An absent condition loops forever; state-function throws reach the error
  * channel through the deferred subscription. The options form carries the
- * same fields; the deprecated scheduler argument is deferred to the
- * remaining-scheduler-shapes milestone (M18).
+ * same fields, and a scheduler (options field, or the deprecated positional
+ * argument after `iterate` / `resultSelector`) pulls the generator through
+ * `scheduleIterable` instead.
  */
 export function generate<S>(options: GenerateBaseOptions<S>): Observable<S>;
 export function generate<T, S>(options: GenerateOptions<T, S>): Observable<T>;
 export function generate<S>(
   initialState: S,
   condition: (state: S) => boolean,
-  iterate: (state: S) => S
+  iterate: (state: S) => S,
+  scheduler?: Scheduler
 ): Observable<S>;
 export function generate<T, S>(
   initialState: S,
   condition: (state: S) => boolean,
   iterate: (state: S) => S,
-  resultSelector: (state: S) => T
+  resultSelector: (state: S) => T,
+  scheduler?: Scheduler
 ): Observable<T>;
 export function generate<T, S>(
-  ...args:
-    | [GenerateBaseOptions<S> | GenerateOptions<T, S>]
-    | [S, (state: S) => boolean, (state: S) => S, ((state: S) => T)?]
+  ...args: [
+    S | GenerateBaseOptions<S> | GenerateOptions<T, S>,
+    ((state: S) => boolean)?,
+    ((state: S) => S)?,
+    (((state: S) => T) | Scheduler)?,
+    Scheduler?,
+  ]
 ): Observable<T | S> {
   let initialState: S;
   let condition: ((state: S) => boolean) | undefined;
   let iterate: (state: S) => S;
   let resultSelector: (state: S) => T | S;
+  let scheduler: Scheduler | undefined;
 
   if (args.length === 1) {
     const options = args[0] as GenerateOptions<T, S>;
@@ -49,9 +60,17 @@ export function generate<T, S>(
     condition = options.condition;
     iterate = options.iterate;
     resultSelector = options.resultSelector ?? (identity as (state: S) => S);
+    scheduler = options.scheduler;
   } else {
     [initialState, condition, iterate] = args as [S, (state: S) => boolean, (state: S) => S];
-    resultSelector = (args[3] as ((state: S) => T) | undefined) ?? (identity as (state: S) => S);
+    const resultSelectorOrScheduler = args[3] as ((state: S) => T) | Scheduler | undefined;
+    if (!resultSelectorOrScheduler || isScheduler(resultSelectorOrScheduler)) {
+      resultSelector = identity as (state: S) => S;
+      scheduler = resultSelectorOrScheduler;
+    } else {
+      resultSelector = resultSelectorOrScheduler;
+      scheduler = args[4] as Scheduler | undefined;
+    }
   }
 
   const gen = function* (): Generator<T | S> {
@@ -60,5 +79,6 @@ export function generate<T, S>(
     }
   };
 
-  return defer(gen);
+  const pull = scheduler;
+  return defer(pull ? () => scheduleIterable(gen(), pull) : gen);
 }

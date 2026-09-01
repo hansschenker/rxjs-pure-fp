@@ -13,10 +13,9 @@ export const executeScheduledWork = (
   work: () => void,
   delay = 0
 ): Subscription => {
-  let action: Subscription | null = null;
-  action = scheduler.schedule(() => {
+  const action = scheduler.schedule<undefined>((_state, self) => {
     work();
-    action?.unsubscribe();
+    self.unsubscribe();
   }, delay);
   parent.add(action);
   return action;

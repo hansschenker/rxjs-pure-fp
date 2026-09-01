@@ -1,6 +1,8 @@
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
 
+import { NODE_INTEROP_NAMES } from './export-names.mjs';
+
 const require = createRequire(import.meta.url);
 const pkg = require('rxjs/package.json');
 
@@ -17,10 +19,17 @@ const subpaths = {
   './webSocket': 'rxjs/webSocket'
 };
 
+// Node resolves `rxjs` through its `node` export condition to the CommonJS
+// build, so the namespace carries the CJS interop artifacts `__esModule` and
+// `default` — part of the package shape RxJS ships, kept in the manifest.
+// Newer Node versions add a `module.exports` name to such namespaces; that
+// one belongs to Node, not to the package, and is excluded.
 const exportsBySubpath = {};
 for (const [subpath, specifier] of Object.entries(subpaths)) {
   const module = await import(specifier);
-  exportsBySubpath[subpath] = Object.keys(module).sort();
+  exportsBySubpath[subpath] = Object.keys(module)
+    .filter((name) => !NODE_INTEROP_NAMES.has(name))
+    .sort();
 }
 
 const manifest = {

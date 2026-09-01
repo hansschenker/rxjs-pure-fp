@@ -8,14 +8,17 @@ import type { ObservableInput } from '../kernel/interop.ts';
 import { isBrandedObservable, type Observable } from '../kernel/observable.ts';
 import type { OperatorFunction } from '../kernel/operator.ts';
 import { map } from '../kernel/operators/map.ts';
+import type { Scheduler } from '../kernel/scheduler.ts';
 import { withLatestFrom as withLatestFromKernel } from '../kernel/operators/with-latest-from.ts';
+import { popScheduler } from './scheduler-args.ts';
 
 /**
  * RxJS 7.8.2 argument surface for the coordination family: rest arguments,
  * single-array form, plain-object (dictionary) form, deprecated result
  * selectors, and merge's trailing `concurrent`. Since M16 every input is any
- * `ObservableInput`, converted by the kernel machines; the deprecated
- * scheduler arguments remain deferred to M18.
+ * `ObservableInput`, converted by the kernel machines; since M18 the
+ * deprecated trailing scheduler of `merge`/`concat`/`combineLatest` is popped
+ * first (RxJS order: scheduler, then result selector / concurrency).
  */
 
 type AnyObservable = Observable<unknown>;
@@ -25,14 +28,14 @@ type AnySelector = (...values: unknown[]) => unknown;
 // selector heuristic must exclude branded observables. Raw-function sources
 // in trailing rest position would be misread as selectors; use the array
 // forms for those (recorded as an intentional deviation).
-const popResultSelector = (args: unknown[]): AnySelector | undefined => {
+export const popResultSelector = (args: unknown[]): AnySelector | undefined => {
   const last = args[args.length - 1];
   return typeof last === 'function' && !isBrandedObservable(last)
     ? (args.pop() as AnySelector)
     : undefined;
 };
 
-const argsOrArgArray = (args: unknown[]): AnyObservable[] =>
+export const argsOrArgArray = (args: unknown[]): AnyObservable[] =>
   args.length === 1 && Array.isArray(args[0]) ? (args[0] as AnyObservable[]) : (args as AnyObservable[]);
 
 const plainObjectPrototype: unknown = Object.getPrototypeOf({});
@@ -78,13 +81,23 @@ const shapeResult = (
 
 export function merge<T>(...sources: Array<ObservableInput<T>>): Observable<T>;
 export function merge<T>(...sourcesAndConcurrent: [...Array<ObservableInput<T>>, number]): Observable<T>;
-export function merge<T>(...args: Array<ObservableInput<T> | number>): Observable<T> {
+export function merge<T>(
+  ...sourcesConcurrentAndScheduler: [...Array<ObservableInput<T>>, number, Scheduler]
+): Observable<T>;
+export function merge<T>(...sourcesAndScheduler: [...Array<ObservableInput<T>>, Scheduler]): Observable<T>;
+export function merge<T>(...args: Array<ObservableInput<T> | number | Scheduler>): Observable<T> {
+  const scheduler = popScheduler(args);
   const concurrent =
     typeof args[args.length - 1] === 'number' ? (args.pop() as number) : Infinity;
-  return mergeKernel(args as Array<ObservableInput<T>>, concurrent);
+  return mergeKernel(args as Array<ObservableInput<T>>, concurrent, scheduler);
 }
 
-export const concat = <T>(...sources: Array<ObservableInput<T>>): Observable<T> => concatKernel(sources);
+export function concat<T>(...sources: Array<ObservableInput<T>>): Observable<T>;
+export function concat<T>(...sourcesAndScheduler: [...Array<ObservableInput<T>>, Scheduler]): Observable<T>;
+export function concat<T>(...args: Array<ObservableInput<T> | Scheduler>): Observable<T> {
+  const scheduler = popScheduler(args);
+  return concatKernel(args as Array<ObservableInput<T>>, scheduler);
+}
 
 export function combineLatest<T>(sources: ReadonlyArray<ObservableInput<T>>): Observable<T[]>;
 export function combineLatest<T>(
@@ -94,10 +107,14 @@ export function combineLatest<T>(...sources: Array<ObservableInput<T>>): Observa
 export function combineLatest<T, R>(
   ...sourcesAndSelector: [...Array<ObservableInput<T>>, (...values: T[]) => R]
 ): Observable<R>;
+export function combineLatest<T>(
+  ...sourcesAndScheduler: [...Array<ObservableInput<T>>, Scheduler]
+): Observable<T[]>;
 export function combineLatest(...args: unknown[]): AnyObservable {
+  const scheduler = popScheduler(args);
   const resultSelector = popResultSelector(args);
   const { sources, keys } = argsArgArrayOrObject(args);
-  return shapeResult(combineLatestKernel(sources), keys, resultSelector);
+  return shapeResult(combineLatestKernel(sources, scheduler), keys, resultSelector);
 }
 
 export function zip<T>(sources: ReadonlyArray<ObservableInput<T>>): Observable<T[]>;

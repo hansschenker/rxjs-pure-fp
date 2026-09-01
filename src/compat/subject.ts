@@ -1,4 +1,5 @@
 import type { Observable } from '../kernel/observable.ts';
+import type { TimestampProvider } from '../kernel/scheduler.ts';
 import type { PartialObserver } from '../kernel/sink.ts';
 import {
   createAnonymousSubject,
@@ -34,7 +35,11 @@ export const Subject = Object.assign(subjectFactory, {
 export const BehaviorSubject = <T>(initialValue: T): BehaviorSubjectRecord<T> =>
   createBehaviorSubject(initialValue);
 
-export const ReplaySubject = <T>(bufferSize?: number): SubjectRecord<T> =>
-  createReplaySubject<T>(bufferSize);
+/** Size window, time window, and the window's clock — the RxJS constructor's three arguments. */
+export const ReplaySubject = <T>(
+  bufferSize?: number,
+  windowTime?: number,
+  timestampProvider?: TimestampProvider
+): SubjectRecord<T> => createReplaySubject<T>(bufferSize, windowTime, timestampProvider);
 
 export const AsyncSubject = <T>(): SubjectRecord<T> => createAsyncSubject<T>();
