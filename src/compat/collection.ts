@@ -1,3 +1,4 @@
+import type { ObservableInput } from '../kernel/interop.ts';
 import type { Observable } from '../kernel/observable.ts';
 import type { OperatorFunction } from '../kernel/operator.ts';
 import { partition as partitionKernel } from '../kernel/creation/partition.ts';
@@ -50,7 +51,7 @@ export function findIndex<T, A = undefined>(
 }
 
 export function partition<T, A = undefined>(
-  source: Observable<T>,
+  source: ObservableInput<T>,
   predicate: (this: A, value: T, index: number) => boolean,
   thisArg?: A
 ): [Observable<T>, Observable<T>] {
@@ -75,18 +76,18 @@ export function groupBy<T, K, E>(
 export function groupBy<T, K>(
   keySelector: (value: T) => K,
   element: undefined | void,
-  duration: (grouped: GroupedObservable<K, T>) => Observable<unknown>
+  duration: (grouped: GroupedObservable<K, T>) => ObservableInput<unknown>
 ): OperatorFunction<T, GroupedObservable<K, T>>;
 export function groupBy<T, K, E>(
   keySelector: (value: T) => K,
   element?: (value: T) => E,
-  duration?: (grouped: GroupedObservable<K, E>) => Observable<unknown>,
+  duration?: (grouped: GroupedObservable<K, E>) => ObservableInput<unknown>,
   connector?: () => SubjectLike<E>
 ): OperatorFunction<T, GroupedObservable<K, E>>;
 export function groupBy<T, K, E>(
   keySelector: (value: T) => K,
   elementOrOptions?: ((value: T) => E) | GroupByOptions<T, K, E> | void,
-  duration?: (grouped: GroupedObservable<K, E>) => Observable<unknown>,
+  duration?: (grouped: GroupedObservable<K, E>) => ObservableInput<unknown>,
   connector?: () => SubjectLike<E>
 ): OperatorFunction<T, GroupedObservable<K, E>> {
   const options: GroupByOptions<T, K, E> =

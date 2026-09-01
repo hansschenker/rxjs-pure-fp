@@ -1,5 +1,5 @@
 import { exhaustPolicy, flattenWith } from '../flattening.ts';
-import type { Observable } from '../observable.ts';
+import type { ObservableInput } from '../interop.ts';
 import type { OperatorFunction } from '../operator.ts';
 
 /**
@@ -8,5 +8,5 @@ import type { OperatorFunction } from '../operator.ts';
  * `resultSelector` overload is compat surface.
  */
 export const exhaustMap = <T, R>(
-  project: (value: T, index: number) => Observable<R>
+  project: (value: T, index: number) => ObservableInput<R>
 ): OperatorFunction<T, R> => flattenWith(exhaustPolicy, project);

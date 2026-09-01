@@ -1,4 +1,4 @@
-import type { Observable } from '../observable.ts';
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import {
   createOperatorSubscriber,
   operate,
@@ -13,10 +13,10 @@ import type { Subscriber } from '../sink.ts';
  * emitted buffer immediately invokes `closingSelector` for the notifier that
  * closes the next one. The first cycle opens silently (no leading empty
  * emission); the previous closing subscription is dropped before each new
- * cycle. M15 scope: the selector must return a functional Observable.
+ * cycle. Since M16 the selector may return any `ObservableInput`.
  */
 export const bufferWhen = <T>(
-  closingSelector: () => Observable<unknown>
+  closingSelector: () => ObservableInput<unknown>
 ): OperatorFunction<T, T[]> =>
   operate((source, destination) => {
     let currentBuffer: T[] | null = null;
@@ -30,7 +30,7 @@ export const bufferWhen = <T>(
         destination.next(previous);
       }
       closingSubscriber = createOperatorSubscriber<unknown, T[]>(destination, openBuffer, noop);
-      subscribeOperator(closingSelector(), closingSubscriber);
+      subscribeOperator(innerFrom(closingSelector()), closingSubscriber);
     };
 
     openBuffer();

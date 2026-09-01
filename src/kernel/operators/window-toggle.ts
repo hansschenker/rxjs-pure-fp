@@ -1,3 +1,4 @@
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import type { Observable } from '../observable.ts';
 import {
   createOperatorSubscriber,
@@ -21,12 +22,12 @@ const removeWindow = <T>(windows: Array<Subject<T>>, target: Subject<T>): void =
  * a window, and the first emission of that value's `closingSelector` notifier
  * closes exactly that window, so windows overlap freely. A throwing selector
  * errors every open window before the result; unsubscription tears open
- * windows down without terminal signals. M15 scope: openings and selector
- * results must be functional Observables.
+ * windows down without terminal signals. Since M16, openings and selector
+ * results are any `ObservableInput`.
  */
 export const windowToggle = <T, O>(
-  openings: Observable<O>,
-  closingSelector: (openValue: O) => Observable<unknown>
+  openings: ObservableInput<O>,
+  closingSelector: (openValue: O) => ObservableInput<unknown>
 ): OperatorFunction<T, Observable<T>> =>
   operate((source, destination) => {
     const windows: Array<Subject<T>> = [];
@@ -39,7 +40,7 @@ export const windowToggle = <T, O>(
     };
 
     subscribeOperator(
-      openings,
+      innerFrom(openings),
       createOperatorSubscriber<O, Observable<T>>(
         destination,
         (openValue) => {
@@ -54,7 +55,7 @@ export const windowToggle = <T, O>(
 
           let closingNotifier: Observable<unknown>;
           try {
-            closingNotifier = closingSelector(openValue);
+            closingNotifier = innerFrom(closingSelector(openValue));
           } catch (error) {
             handleError(error);
             return;

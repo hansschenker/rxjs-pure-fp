@@ -704,7 +704,52 @@ deprecated `thisArg` bindings and `groupBy`'s positional arguments live in
 
 ---
 
-# Root parity after M15
+# M16 — Creation & Interop
+
+`innerFrom` is the session's core: one conversion boundary that turns every
+RxJS `ObservableInput` into a functional Observable, probing in RxJS's exact
+order:
+
+```text
+function                     already an Observable — returned by reference
+Symbol.observable carrier    subscribed through its interop contract
+array-like (incl. strings)   synchronous index loop
+promise-like                 resolution emits + completes; rejection errors
+async iterable               for-await pump, early-unsubscribe break
+iterable                     for-of pump releasing generator finalizers
+readable-stream-like         reader pumped as an async generator
+```
+
+Anything else throws RxJS's exact `TypeError`. The boundary retires every
+"functional Observables only" deferral recorded across M05-M15: flattening
+projections, notifiers, duration and closing selectors, group durations,
+coordination inputs, recovery/fallback factories, and share reset / connect
+selector factories now accept any `ObservableInput` at the same sites where
+RxJS converts. Promise-fed consumer crashes report through the F6 runtime
+environment (`reportUnhandledError`); `Promise` joined the architecture
+gate's allowed platform constructors.
+
+Creation closes over the conversion: `from`, `defer` (factory per
+subscription), `iif`, `range` (argument shuffle, shared `EMPTY`), `generate`
+(a generator function through `defer`), `using` (resource disposed after
+downstream teardown), `pairs`, and deprecated `empty()`/`never()` returning
+the shared constants. `fromEvent` probes its four target shapes and
+`fromEventPattern` hands the registration signal back to removal;
+`bindCallback`/`bindNodeCallback` funnel one callback invocation per
+argument application into an AsyncSubject with RxJS's sync/async completion
+dance and error-first splitting. `firstValueFrom`/`lastValueFrom` are the
+Promise consumption edge (`EmptyError` or `defaultValue` on empty), and
+`isObservable`/`observable` are the interop predicates — brand-based, the
+representational analog of `instanceof`.
+
+# M16 verification
+
+- **178 / 178 unit** and **263 / 263 differential tests** pass (19 new M16 traces: every `from` input kind incl. interop carriers and identical `TypeError` messages; defer/iif/range/generate/using/pairs incl. shared-constant identities; fromEvent registries, multi-arg events, result selectors; fromEventPattern signals; bindCallback sync/async/replay and bindNodeCallback error-first; firstValueFrom/lastValueFrom settlement incl. `EmptyError`; ObservableInput acceptance through the retired flattening/coordination/notifier/recovery deferrals);
+- RxJS root export parity: **137 / 175 = 78.3%**; unexpected exports: **0**.
+
+---
+
+# Root parity after M16
 
 Implemented RxJS 7.8.2 root exports:
 
@@ -731,6 +776,26 @@ Creation
   EMPTY
   timer
   interval
+  from
+  defer
+  iif
+  range
+  generate
+  using
+  empty
+  never
+  NEVER
+  pairs
+  fromEvent
+  fromEventPattern
+  bindCallback
+  bindNodeCallback
+
+Interop / consumption
+  observable
+  isObservable
+  firstValueFrom
+  lastValueFrom
 
 Projection / querying
   map
@@ -794,7 +859,7 @@ Grouping / collection
   every       find          findIndex
 ```
 
-That is **119 / 175 = 68.0%** of the root export names.
+That is **137 / 175 = 78.3%** of the root export names.
 
 ## Deliberate functional extensions
 
@@ -899,7 +964,7 @@ timer/interval as the time primitive; delay/delayWhen, debounce/audit/throttle/s
 ### M15 — Boundary & Collection ✅
 buffer/window families as boundary policies over Subjects + timers; groupBy with reference-counted release + partition; count/max/min/every/find/findIndex as reduce/terminal algebra.
 
-### M16 — Creation & Interop (Session 5, 18 features)
+### M16 — Creation & Interop ✅
 from/innerFrom ObservableInput conversion (retiring the functional-Observables-only deferrals), fromEvent/fromEventPattern, bindCallback/bindNodeCallback, defer/iif/range/generate/using, empty/never/NEVER/pairs, isObservable/observable, firstValueFrom/lastValueFrom.
 
 ### M17 — Materialization & Operator Tail (Session 6, 19 features)
@@ -923,16 +988,16 @@ Session 1  M01-M05   ✅ kernel + first-order operator policies
 Session 2  M06-M10   ✅ gating + higher-order + flattening + coordination + Subjects
 Session 3  M11-M14   ✅ sharing + recovery + scheduling + time
 Session 4  M15       ✅ boundary & collection                 → 119/175 (68.0%)
-Session 5  M16       18 features  creation & interop         → 137/175 (78.3%)
+Session 5  M16       ✅ creation & interop                    → 137/175 (78.3%)
 Session 6  M17       19 features  materialization & op tail  → 156/175 (89.1%)
 Session 7  M18-M20   19 features  compat closure + gates     → 175/175 (100%)
 ```
 
-Sessions 1-4 are complete (Session 3 re-scoped to close at M14). The
-remaining **56 root exports** are planned as three exact-count feature
+Sessions 1-5 are complete (Session 3 re-scoped to close at M14). The
+remaining **38 root exports** are planned as two exact-count feature
 sessions — the per-name allocation lives in `docs/EXECUTION-PLAN.md` and the
-current per-export status in `feature-parity-list.md`. Next is **Session 5:
-M16 — Creation & Interop**.
+current per-export status in `feature-parity-list.md`. Next is **Session 6:
+M17 — Materialization & Operator Tail**.
 
 ---
 

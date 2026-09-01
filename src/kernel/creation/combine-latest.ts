@@ -1,3 +1,4 @@
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import { createObservable, type Observable } from '../observable.ts';
 import { createOperatorSubscriber, subscribeOperator } from '../operator.ts';
 
@@ -8,7 +9,7 @@ import { createOperatorSubscriber, subscribeOperator } from '../operator.ts';
  * emitting leaves the result silent but still pending the others, exactly as
  * in RxJS 7.8.2. Sources are subscribed eagerly in argument order.
  */
-export const combineLatest = <T>(sources: ReadonlyArray<Observable<T>>): Observable<T[]> => {
+export const combineLatest = <T>(sources: ReadonlyArray<ObservableInput<T>>): Observable<T[]> => {
   if (sources.length === 0) {
     return createObservable((destination) => {
       destination.complete();
@@ -25,7 +26,7 @@ export const combineLatest = <T>(sources: ReadonlyArray<Observable<T>>): Observa
       const sourceIndex = index;
       let hasFirstValue = false;
       subscribeOperator(
-        sources[sourceIndex] as Observable<T>,
+        innerFrom(sources[sourceIndex] as ObservableInput<T>),
         createOperatorSubscriber<T, T[]>(
           destination,
           (value) => {

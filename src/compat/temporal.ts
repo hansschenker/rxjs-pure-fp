@@ -1,5 +1,5 @@
 import { isValidDate } from '../kernel/creation/timer.ts';
-import type { Observable } from '../kernel/observable.ts';
+import type { ObservableInput } from '../kernel/interop.ts';
 import type { OperatorFunction } from '../kernel/operator.ts';
 import { asyncScheduler, type Scheduler } from '../kernel/scheduler.ts';
 import { timeout } from '../kernel/operators/timeout.ts';
@@ -11,7 +11,7 @@ import { timeout } from '../kernel/operators/timeout.ts';
  */
 export const timeoutWith = <T, R>(
   due: number | Date,
-  withObservable: Observable<R>,
+  withObservable: ObservableInput<R>,
   scheduler?: Scheduler
 ): OperatorFunction<T, T | R> => {
   const first = isValidDate(due) ? due : undefined;

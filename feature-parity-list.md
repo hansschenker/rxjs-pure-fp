@@ -2,9 +2,9 @@
 
 Root export parity of `rxjs-pure-fp` against the pinned behavioral oracle
 `rxjs@7.8.2`, generated from `reference/exports.json` and the built
-`dist/esm/index.js` after **M15 — Boundary & Collection**.
+`dist/esm/index.js` after **M16 — Creation & Interop**.
 
-**Implemented: 119 / 175 root exports (68.0%)** — 0 unexpected exports.
+**Implemented: 137 / 175 root exports (78.3%)** — 0 unexpected exports.
 
 An implemented name means the export exists with differentially certified
 behavior for its claimed scope (see `docs/RXJS-7.8.2-PARITY.md` for
@@ -12,21 +12,40 @@ per-milestone certified scope and recorded deferrals).
 
 | Implemented (rxjs-pure-fp) | Original (rxjs@7.8.2) |
 | --- | --- |
+| `ArgumentOutOfRangeError` ✅ | `ArgumentOutOfRangeError` |
+| `AsyncSubject` ✅ | `AsyncSubject` |
+| `BehaviorSubject` ✅ | `BehaviorSubject` |
+| — | `ConnectableObservable` |
+| `EMPTY` ✅ | `EMPTY` |
+| `EmptyError` ✅ | `EmptyError` |
+| `NEVER` ✅ | `NEVER` |
+| `NotFoundError` ✅ | `NotFoundError` |
+| — | `Notification` |
+| — | `NotificationKind` |
+| `ObjectUnsubscribedError` ✅ | `ObjectUnsubscribedError` |
+| `Observable` ✅ | `Observable` |
+| `ReplaySubject` ✅ | `ReplaySubject` |
+| — | `Scheduler` |
+| `SequenceError` ✅ | `SequenceError` |
+| `Subject` ✅ | `Subject` |
+| `Subscriber` ✅ | `Subscriber` |
+| `Subscription` ✅ | `Subscription` |
+| `TimeoutError` ✅ | `TimeoutError` |
+| `UnsubscriptionError` ✅ | `UnsubscriptionError` |
+| — | `VirtualAction` |
+| — | `VirtualTimeScheduler` |
 | — | `__esModule` |
 | — | `animationFrame` |
-| — | `animationFrames` |
 | — | `animationFrameScheduler` |
-| `ArgumentOutOfRangeError` ✅ | `ArgumentOutOfRangeError` |
+| — | `animationFrames` |
 | `asap` ✅ | `asap` |
 | `asapScheduler` ✅ | `asapScheduler` |
 | `async` ✅ | `async` |
 | `asyncScheduler` ✅ | `asyncScheduler` |
-| `AsyncSubject` ✅ | `AsyncSubject` |
 | `audit` ✅ | `audit` |
 | `auditTime` ✅ | `auditTime` |
-| `BehaviorSubject` ✅ | `BehaviorSubject` |
-| — | `bindCallback` |
-| — | `bindNodeCallback` |
+| `bindCallback` ✅ | `bindCallback` |
+| `bindNodeCallback` ✅ | `bindNodeCallback` |
 | `buffer` ✅ | `buffer` |
 | `bufferCount` ✅ | `bufferCount` |
 | `bufferTime` ✅ | `bufferTime` |
@@ -45,13 +64,12 @@ per-milestone certified scope and recorded deferrals).
 | `config` ✅ | `config` |
 | `connect` ✅ | `connect` |
 | `connectable` ✅ | `connectable` |
-| — | `ConnectableObservable` |
 | `count` ✅ | `count` |
 | `debounce` ✅ | `debounce` |
 | `debounceTime` ✅ | `debounceTime` |
 | — | `default` |
 | `defaultIfEmpty` ✅ | `defaultIfEmpty` |
-| — | `defer` |
+| `defer` ✅ | `defer` |
 | `delay` ✅ | `delay` |
 | `delayWhen` ✅ | `delayWhen` |
 | — | `dematerialize` |
@@ -59,9 +77,7 @@ per-milestone certified scope and recorded deferrals).
 | `distinctUntilChanged` ✅ | `distinctUntilChanged` |
 | `distinctUntilKeyChanged` ✅ | `distinctUntilKeyChanged` |
 | `elementAt` ✅ | `elementAt` |
-| — | `empty` |
-| `EMPTY` ✅ | `EMPTY` |
-| `EmptyError` ✅ | `EmptyError` |
+| `empty` ✅ | `empty` |
 | — | `endWith` |
 | `every` ✅ | `every` |
 | — | `exhaust` |
@@ -73,22 +89,22 @@ per-milestone certified scope and recorded deferrals).
 | `find` ✅ | `find` |
 | `findIndex` ✅ | `findIndex` |
 | `first` ✅ | `first` |
-| — | `firstValueFrom` |
+| `firstValueFrom` ✅ | `firstValueFrom` |
 | `flatMap` ✅ | `flatMap` |
 | `forkJoin` ✅ | `forkJoin` |
-| — | `from` |
-| — | `fromEvent` |
-| — | `fromEventPattern` |
-| — | `generate` |
+| `from` ✅ | `from` |
+| `fromEvent` ✅ | `fromEvent` |
+| `fromEventPattern` ✅ | `fromEventPattern` |
+| `generate` ✅ | `generate` |
 | `groupBy` ✅ | `groupBy` |
 | `identity` ✅ | `identity` |
 | — | `ignoreElements` |
-| — | `iif` |
+| `iif` ✅ | `iif` |
 | `interval` ✅ | `interval` |
 | — | `isEmpty` |
-| — | `isObservable` |
+| `isObservable` ✅ | `isObservable` |
 | `last` ✅ | `last` |
-| — | `lastValueFrom` |
+| `lastValueFrom` ✅ | `lastValueFrom` |
 | `map` ✅ | `map` |
 | — | `mapTo` |
 | — | `materialize` |
@@ -101,20 +117,14 @@ per-milestone certified scope and recorded deferrals).
 | `mergeWith` ✅ | `mergeWith` |
 | `min` ✅ | `min` |
 | — | `multicast` |
-| — | `never` |
-| — | `NEVER` |
+| `never` ✅ | `never` |
 | `noop` ✅ | `noop` |
-| `NotFoundError` ✅ | `NotFoundError` |
-| — | `Notification` |
-| — | `NotificationKind` |
-| `ObjectUnsubscribedError` ✅ | `ObjectUnsubscribedError` |
-| — | `observable` |
-| `Observable` ✅ | `Observable` |
+| `observable` ✅ | `observable` |
 | `observeOn` ✅ | `observeOn` |
 | `of` ✅ | `of` |
 | — | `onErrorResumeNext` |
 | — | `onErrorResumeNextWith` |
-| — | `pairs` |
+| `pairs` ✅ | `pairs` |
 | `pairwise` ✅ | `pairwise` |
 | `partition` ✅ | `partition` |
 | `pipe` ✅ | `pipe` |
@@ -127,21 +137,18 @@ per-milestone certified scope and recorded deferrals).
 | `queueScheduler` ✅ | `queueScheduler` |
 | `race` ✅ | `race` |
 | `raceWith` ✅ | `raceWith` |
-| — | `range` |
+| `range` ✅ | `range` |
 | `reduce` ✅ | `reduce` |
 | — | `refCount` |
 | `repeat` ✅ | `repeat` |
 | — | `repeatWhen` |
-| `ReplaySubject` ✅ | `ReplaySubject` |
 | `retry` ✅ | `retry` |
 | — | `retryWhen` |
 | `sample` ✅ | `sample` |
 | `sampleTime` ✅ | `sampleTime` |
 | `scan` ✅ | `scan` |
 | — | `scheduled` |
-| — | `Scheduler` |
 | — | `sequenceEqual` |
-| `SequenceError` ✅ | `SequenceError` |
 | `share` ✅ | `share` |
 | `shareReplay` ✅ | `shareReplay` |
 | `single` ✅ | `single` |
@@ -150,10 +157,7 @@ per-milestone certified scope and recorded deferrals).
 | `skipUntil` ✅ | `skipUntil` |
 | `skipWhile` ✅ | `skipWhile` |
 | — | `startWith` |
-| `Subject` ✅ | `Subject` |
 | `subscribeOn` ✅ | `subscribeOn` |
-| `Subscriber` ✅ | `Subscriber` |
-| `Subscription` ✅ | `Subscription` |
 | `switchAll` ✅ | `switchAll` |
 | `switchMap` ✅ | `switchMap` |
 | `switchMapTo` ✅ | `switchMapTo` |
@@ -169,15 +173,11 @@ per-milestone certified scope and recorded deferrals).
 | `throwIfEmpty` ✅ | `throwIfEmpty` |
 | — | `timeInterval` |
 | `timeout` ✅ | `timeout` |
-| `TimeoutError` ✅ | `TimeoutError` |
 | `timeoutWith` ✅ | `timeoutWith` |
 | `timer` ✅ | `timer` |
 | — | `timestamp` |
 | — | `toArray` |
-| `UnsubscriptionError` ✅ | `UnsubscriptionError` |
-| — | `using` |
-| — | `VirtualAction` |
-| — | `VirtualTimeScheduler` |
+| `using` ✅ | `using` |
 | `window` ✅ | `window` |
 | `windowCount` ✅ | `windowCount` |
 | `windowTime` ✅ | `windowTime` |
@@ -203,6 +203,7 @@ per-milestone certified scope and recorded deferrals).
 | `emitOne` |
 | `filterSink` |
 | `fuseSinkTransformers` |
+| `innerFrom` |
 | `liftSinkTransformer` |
 | `mapSink` |
 | `pipeValue` |

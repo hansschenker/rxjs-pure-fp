@@ -1,4 +1,4 @@
-import type { Observable } from '../observable.ts';
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import {
   createOperatorSubscriber,
   operate,
@@ -16,7 +16,7 @@ import type { Subscriber } from '../sink.ts';
  * subscribers, kept exactly.
  */
 export const audit = <T>(
-  durationSelector: (value: T) => Observable<unknown>
+  durationSelector: (value: T) => ObservableInput<unknown>
 ): MonoTypeOperatorFunction<T> =>
   operate((source, destination) => {
     let hasValue = false;
@@ -58,7 +58,7 @@ export const audit = <T>(
               endDuration,
               cleanupDuration
             );
-            subscribeOperator(durationSelector(value), durationSubscriber);
+            subscribeOperator(innerFrom(durationSelector(value)), durationSubscriber);
           }
         },
         () => {

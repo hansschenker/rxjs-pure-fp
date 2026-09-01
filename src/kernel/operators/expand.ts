@@ -1,5 +1,5 @@
 import { flattenWith, overlapPolicy } from '../flattening.ts';
-import type { Observable } from '../observable.ts';
+import type { ObservableInput } from '../interop.ts';
 import type { OperatorFunction } from '../operator.ts';
 
 /**
@@ -9,7 +9,7 @@ import type { OperatorFunction } from '../operator.ts';
  * `concurrent` below one is normalized to unbounded.
  */
 export const expand = <T, R>(
-  project: (value: T | R, index: number) => Observable<R>,
+  project: (value: T | R, index: number) => ObservableInput<R>,
   concurrent = Infinity
 ): OperatorFunction<T, R> =>
   flattenWith<T | R, R>(

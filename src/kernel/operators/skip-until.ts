@@ -1,4 +1,4 @@
-import type { Observable } from '../observable.ts';
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import {
   createOperatorSubscriber,
   operate,
@@ -12,10 +12,9 @@ import { noop } from '../pipe.ts';
  * subscription is dropped at that instant. Notifier completion without a
  * value leaves the gate closed forever; notifier errors flow downstream.
  *
- * M06 scope: the notifier must be a functional Observable. `ObservableInput`
- * conversion is deferred to the interoperability surface.
+ * Since M16 the notifier is any `ObservableInput`, converted on subscribe.
  */
-export const skipUntil = <T>(notifier: Observable<unknown>): MonoTypeOperatorFunction<T> =>
+export const skipUntil = <T>(notifier: ObservableInput<unknown>): MonoTypeOperatorFunction<T> =>
   operate((source, destination) => {
     let taking = false;
 
@@ -27,7 +26,7 @@ export const skipUntil = <T>(notifier: Observable<unknown>): MonoTypeOperatorFun
       },
       noop
     );
-    subscribeOperator(notifier, skipSubscriber);
+    subscribeOperator(innerFrom(notifier), skipSubscriber);
 
     const operatorSubscriber = createOperatorSubscriber<T, T>(destination, (value) => {
       if (taking) {

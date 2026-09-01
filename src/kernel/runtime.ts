@@ -16,6 +16,24 @@ export type RuntimeEnv = {
   readonly defer: (task: () => void) => void;
 };
 
+
+/**
+ * M16: the RxJS `reportUnhandledError` policy through the F6 environment —
+ * deferred to a later tick, dispatched to `onUnhandledError` when the
+ * environment provides one (config-backed envs read the live config at that
+ * later moment) and rethrown as an uncaught host error otherwise.
+ */
+export const reportUnhandledError = (env: RuntimeEnv, error: unknown): void => {
+  env.defer(() => {
+    const { onUnhandledError } = env;
+    if (onUnhandledError) {
+      onUnhandledError(error);
+    } else {
+      throw error;
+    }
+  });
+};
+
 /**
  * M13: the host scheduling edge. Every clock, interval, and microtask the
  * kernel uses flows through this record — the scheduler kernel consumes it,

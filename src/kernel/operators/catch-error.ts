@@ -1,3 +1,4 @@
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import { executeSource, type Observable } from '../observable.ts';
 import {
   createOperatorSubscriber,
@@ -15,7 +16,7 @@ import type { Subscriber } from '../sink.ts';
  * during subscribe switches to the handled observable after connect returns.
  */
 export const catchError = <T, R>(
-  selector: (error: unknown, caught: Observable<T>) => Observable<R>
+  selector: (error: unknown, caught: Observable<T>) => ObservableInput<R>
 ): OperatorFunction<T, T | R> =>
   operate((source, destination) => {
     let innerSubscriber: Subscriber<T> | null = null;
@@ -27,7 +28,7 @@ export const catchError = <T, R>(
       undefined,
       undefined,
       (error) => {
-        handled = selector(error, catchError(selector)(source) as Observable<T>);
+        handled = innerFrom(selector(error, catchError(selector)(source) as Observable<T>));
         if (innerSubscriber) {
           innerSubscriber.unsubscribe();
           innerSubscriber = null;

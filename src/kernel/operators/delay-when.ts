@@ -1,4 +1,4 @@
-import type { Observable } from '../observable.ts';
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import type { MonoTypeOperatorFunction } from '../operator.ts';
 import { pipeValue } from '../pipe.ts';
 import { map } from './map.ts';
@@ -16,11 +16,11 @@ import { take } from './take.ts';
  * remaining-surface milestone (M18).
  */
 export const delayWhen = <T>(
-  delayDurationSelector: (value: T, index: number) => Observable<unknown>
+  delayDurationSelector: (value: T, index: number) => ObservableInput<unknown>
 ): MonoTypeOperatorFunction<T> =>
   mergeMap((value: T, index: number) =>
     pipeValue(
-      delayDurationSelector(value, index),
+      innerFrom(delayDurationSelector(value, index)),
       take(1),
       map((): T => value)
     )

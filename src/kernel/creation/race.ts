@@ -1,3 +1,4 @@
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import { createObservable, type Observable } from '../observable.ts';
 import { createOperatorSubscriber, subscribeOperator } from '../operator.ts';
 import type { Subscriber } from '../sink.ts';
@@ -9,9 +10,9 @@ import type { Subscriber } from '../sink.ts';
  * A synchronously settling contender prevents later contenders from ever
  * subscribing. A single source is returned as-is.
  */
-export const race = <T>(sources: ReadonlyArray<Observable<T>>): Observable<T> => {
+export const race = <T>(sources: ReadonlyArray<ObservableInput<T>>): Observable<T> => {
   if (sources.length === 1) {
-    return sources[0] as Observable<T>;
+    return innerFrom(sources[0] as ObservableInput<T>);
   }
 
   return createObservable((destination) => {
@@ -35,7 +36,7 @@ export const race = <T>(sources: ReadonlyArray<Observable<T>>): Observable<T> =>
         }
         destination.next(value);
       });
-      subscribeOperator(sources[contenderIndex] as Observable<T>, contender);
+      subscribeOperator(innerFrom(sources[contenderIndex] as ObservableInput<T>), contender);
       holder.push(contender);
     }
 

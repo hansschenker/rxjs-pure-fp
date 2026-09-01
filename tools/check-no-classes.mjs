@@ -5,7 +5,7 @@ import ts from '@typescript/typescript6';
 const sourceRoot = path.resolve('src');
 const allowedConstructors = new Set([
   'AbortController', 'AggregateError', 'Array', 'ArrayBuffer', 'DataView', 'Date',
-  'Error', 'EvalError', 'Map', 'RangeError', 'ReferenceError', 'RegExp', 'Set',
+  'Error', 'EvalError', 'Map', 'Promise', 'RangeError', 'ReferenceError', 'RegExp', 'Set',
   'SharedArrayBuffer', 'SyntaxError', 'TypeError', 'URIError', 'URL', 'URLSearchParams',
   'WeakMap', 'WeakSet', 'WebSocket'
 ]);

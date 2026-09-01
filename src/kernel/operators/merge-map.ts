@@ -1,5 +1,5 @@
 import { flattenWith, overlapPolicy } from '../flattening.ts';
-import type { Observable } from '../observable.ts';
+import type { ObservableInput } from '../interop.ts';
 import type { OperatorFunction } from '../operator.ts';
 
 /**
@@ -7,6 +7,6 @@ import type { OperatorFunction } from '../operator.ts';
  * overload is compat surface (`src/compat/flattening.ts`).
  */
 export const mergeMap = <T, R>(
-  project: (value: T, index: number) => Observable<R>,
+  project: (value: T, index: number) => ObservableInput<R>,
   concurrent = Infinity
 ): OperatorFunction<T, R> => flattenWith(overlapPolicy(concurrent), project);

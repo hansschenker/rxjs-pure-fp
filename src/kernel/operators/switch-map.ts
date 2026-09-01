@@ -1,5 +1,5 @@
 import { flattenWith, latestPolicy } from '../flattening.ts';
-import type { Observable } from '../observable.ts';
+import type { ObservableInput } from '../interop.ts';
 import type { OperatorFunction } from '../operator.ts';
 
 /**
@@ -7,5 +7,5 @@ import type { OperatorFunction } from '../operator.ts';
  * inner. The deprecated `resultSelector` overload is compat surface.
  */
 export const switchMap = <T, R>(
-  project: (value: T, index: number) => Observable<R>
+  project: (value: T, index: number) => ObservableInput<R>
 ): OperatorFunction<T, R> => flattenWith(latestPolicy, project);

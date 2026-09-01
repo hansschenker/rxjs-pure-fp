@@ -1,5 +1,5 @@
 import { timer } from '../creation/timer.ts';
-import type { Observable } from '../observable.ts';
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import {
   createOperatorSubscriber,
   operate,
@@ -16,7 +16,7 @@ import type { Subscriber } from '../sink.ts';
  */
 export type RetryConfig = {
   readonly count?: number;
-  readonly delay?: number | ((error: unknown, retryCount: number) => Observable<unknown>);
+  readonly delay?: number | ((error: unknown, retryCount: number) => ObservableInput<unknown>);
   readonly resetOnSuccess?: boolean;
 };
 
@@ -70,7 +70,7 @@ export function retry<T>(configOrCount: number | RetryConfig = Infinity): MonoTy
                       destination.complete();
                     }
                   );
-                  const notifier = typeof delay === 'number' ? timer(delay) : delay(error, soFar);
+                  const notifier = typeof delay === 'number' ? timer(delay) : innerFrom(delay(error, soFar));
                   subscribeOperator(notifier, notifierSubscriber);
                 } else {
                   resub();

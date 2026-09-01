@@ -1,4 +1,4 @@
-import type { Observable } from './observable.ts';
+import { innerFrom, type ObservableInput } from './interop.ts';
 import {
   createOperatorSubscriber,
   operate,
@@ -24,8 +24,8 @@ import type { Subscriber } from './sink.ts';
  *   This asymmetry is observable RxJS 7.8.2 behavior, so it is policy data,
  *   not an implementation accident.
  *
- * M07 scope: projected inners must be functional Observables.
- * `ObservableInput` conversion is deferred to the interoperability surface.
+ * Since M16, projected inners are any `ObservableInput`: the machine
+ * converts them with `innerFrom` at the moment an inner starts.
  */
 export type FlattenOverflow = 'enqueue' | 'ignore' | 'switch';
 
@@ -78,7 +78,7 @@ export type FlattenOptions<R> = {
  */
 export const flattenWith = <T, R>(
   policy: FlatteningPolicy,
-  project: (value: T, index: number) => Observable<R>,
+  project: (value: T, index: number) => ObservableInput<R>,
   options: FlattenOptions<R> = {}
 ): OperatorFunction<T, R> =>
   operate((source, destination) => {
@@ -139,7 +139,7 @@ export const flattenWith = <T, R>(
           : undefined
       );
       activeInners.push(inner);
-      subscribeOperator(project(value, index++), inner);
+      subscribeOperator(innerFrom(project(value, index++)), inner);
     };
 
     const outerNext = (value: T): void => {

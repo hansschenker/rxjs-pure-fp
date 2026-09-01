@@ -1,5 +1,6 @@
+import type { ObservableInput } from '../interop.ts';
 import { flattenWith, overlapPolicy } from '../flattening.ts';
-import { createObservable, type Observable } from '../observable.ts';
+import { createObservable } from '../observable.ts';
 import type { OperatorFunction } from '../operator.ts';
 
 /**
@@ -8,7 +9,7 @@ import type { OperatorFunction } from '../operator.ts';
  * downstream emission.
  */
 export const mergeScan = <T, R>(
-  accumulator: (accumulated: R, value: T, index: number) => Observable<R>,
+  accumulator: (accumulated: R, value: T, index: number) => ObservableInput<R>,
   seed: R,
   concurrent = Infinity
 ): OperatorFunction<T, R> =>

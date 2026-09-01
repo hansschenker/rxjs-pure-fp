@@ -1,4 +1,5 @@
 import { EMPTY } from './empty.ts';
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import { createObservable, type Observable } from '../observable.ts';
 import { createOperatorSubscriber, subscribeOperator } from '../operator.ts';
 
@@ -7,7 +8,7 @@ import { createOperatorSubscriber, subscribeOperator } from '../operator.ts';
  * are non-empty. Completes as soon as any completed source's buffer is empty
  * — either at its completion or when a later emission drains it.
  */
-export const zip = <T>(sources: ReadonlyArray<Observable<T>>): Observable<T[]> => {
+export const zip = <T>(sources: ReadonlyArray<ObservableInput<T>>): Observable<T[]> => {
   if (sources.length === 0) {
     return EMPTY;
   }
@@ -19,7 +20,7 @@ export const zip = <T>(sources: ReadonlyArray<Observable<T>>): Observable<T[]> =
     for (let index = 0; index < sources.length && !destination.closed; index += 1) {
       const sourceIndex = index;
       subscribeOperator(
-        sources[sourceIndex] as Observable<T>,
+        innerFrom(sources[sourceIndex] as ObservableInput<T>),
         createOperatorSubscriber<T, T[]>(
           destination,
           (value) => {

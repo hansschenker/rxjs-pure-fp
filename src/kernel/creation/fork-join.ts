@@ -1,3 +1,4 @@
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import { createObservable, type Observable } from '../observable.ts';
 import { createOperatorSubscriber, subscribeOperator } from '../operator.ts';
 
@@ -7,7 +8,7 @@ import { createOperatorSubscriber, subscribeOperator } from '../operator.ts';
  * value completes the result immediately with no emission — the settle check
  * runs in each source's finalize hook, exactly as in RxJS 7.8.2.
  */
-export const forkJoin = <T>(sources: ReadonlyArray<Observable<T>>): Observable<T[]> =>
+export const forkJoin = <T>(sources: ReadonlyArray<ObservableInput<T>>): Observable<T[]> =>
   createObservable((destination) => {
     const { length } = sources;
     if (length === 0) {
@@ -23,7 +24,7 @@ export const forkJoin = <T>(sources: ReadonlyArray<Observable<T>>): Observable<T
       const sourceIndex = index;
       let hasValue = false;
       subscribeOperator(
-        sources[sourceIndex] as Observable<T>,
+        innerFrom(sources[sourceIndex] as ObservableInput<T>),
         createOperatorSubscriber<T, T[]>(
           destination,
           (value) => {

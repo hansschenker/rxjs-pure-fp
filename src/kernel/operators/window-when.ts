@@ -1,3 +1,4 @@
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import type { Observable } from '../observable.ts';
 import {
   createOperatorSubscriber,
@@ -12,11 +13,11 @@ import { createSubject, type Subject } from '../subject.ts';
  * The Subject-emitting sibling of `bufferWhen`: one window is open at a time,
  * and `closingSelector` is invoked per cycle for the notifier whose first
  * emission — or completion — closes it and opens the next. The first window
- * opens immediately on subscription. M15 scope: the selector must return a
- * functional Observable.
+ * opens immediately on subscription. Since M16 the selector may return any
+ * `ObservableInput`.
  */
 export const windowWhen = <T>(
-  closingSelector: () => Observable<unknown>
+  closingSelector: () => ObservableInput<unknown>
 ): OperatorFunction<T, Observable<T>> =>
   operate((source, destination) => {
     let currentWindow: Subject<T> | null = null;
@@ -36,7 +37,7 @@ export const windowWhen = <T>(
 
       let closingNotifier: Observable<unknown>;
       try {
-        closingNotifier = closingSelector();
+        closingNotifier = innerFrom(closingSelector());
       } catch (error) {
         handleError(error);
         return;

@@ -1,3 +1,4 @@
+import { innerFrom, type ObservableInput } from './interop.ts';
 import { createObservable, executeSource, type Observable } from './observable.ts';
 import { operate, type MonoTypeOperatorFunction, type OperatorFunction } from './operator.ts';
 import { createSubscriber, type Subscriber } from './sink.ts';
@@ -11,14 +12,14 @@ import { createReplaySubject, createSubject, type Subject } from './subject.ts';
  * expose the connection explicitly instead of ref-counting it.
  *
  * Reset policies accept `true` (reset immediately), `false` (never), or a
- * notifier factory whose first emission triggers the reset — the notifier
- * must be a functional Observable.
+ * notifier factory whose first emission triggers the reset; since M16 the
+ * factory may return any `ObservableInput`.
  */
 export type ShareConfig<T> = {
   readonly connector?: () => Subject<T>;
-  readonly resetOnError?: boolean | ((error: unknown) => Observable<unknown>);
-  readonly resetOnComplete?: boolean | (() => Observable<unknown>);
-  readonly resetOnRefCountZero?: boolean | (() => Observable<unknown>);
+  readonly resetOnError?: boolean | ((error: unknown) => ObservableInput<unknown>);
+  readonly resetOnComplete?: boolean | (() => ObservableInput<unknown>);
+  readonly resetOnRefCountZero?: boolean | (() => ObservableInput<unknown>);
 };
 
 export const share = <T>(options: ShareConfig<T> = {}): MonoTypeOperatorFunction<T> => {
@@ -94,7 +95,7 @@ export const share = <T>(options: ShareConfig<T> = {}): MonoTypeOperatorFunction
 
 const handleReset = <A extends readonly unknown[]>(
   reset: () => void,
-  on: boolean | ((...args: A) => Observable<unknown>),
+  on: boolean | ((...args: A) => ObservableInput<unknown>),
   ...args: A
 ): Subscription | undefined => {
   if (on === true) {
@@ -113,7 +114,7 @@ const handleReset = <A extends readonly unknown[]>(
     error: () => undefined,
     complete: () => undefined,
   });
-  executeSource(on(...args), notifierSubscriber);
+  executeSource(innerFrom(on(...args)), notifierSubscriber);
   return notifierSubscriber;
 };
 
@@ -195,12 +196,12 @@ export type ConnectConfig<T> = {
  * source is connected. Lets one subscription use the source several times.
  */
 export const connect = <T, R>(
-  selector: (shared: Observable<T>) => Observable<R>,
+  selector: (shared: Observable<T>) => ObservableInput<R>,
   config: ConnectConfig<T> = {}
 ): OperatorFunction<T, R> =>
   operate((source, destination) => {
     const subject = (config.connector ?? (() => createSubject<T>()))();
-    executeSource(selector(subject.asObservable()), destination);
+    executeSource(innerFrom(selector(subject.asObservable())), destination);
     const connectionSubscriber = createSubscriber<T>(subject);
     executeSource(source, connectionSubscriber);
     destination.add(connectionSubscriber);

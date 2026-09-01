@@ -140,8 +140,8 @@ M07-certified invariants of the shared machine:
   all surface as errors of the result;
 - downstream unsubscription tears down the outer and every live inner.
 
-M07 scope note: projected inners must be functional Observables;
-`ObservableInput` conversion is deferred to the interoperability surface.
+M07 scope note: since M16 projected inners are any `ObservableInput`,
+converted by the machine at inner start.
 
 ## Flattening operators (M08)
 
@@ -164,8 +164,7 @@ M07 scope note: projected inners must be functional Observables;
   completes when the recursion drains. `concurrent < 1` is normalized to
   unbounded, unlike `mergeMap` where it stalls admission.
 
-M08 scope note: inner inputs must be functional Observables; `ObservableInput`
-conversion is deferred to the interoperability surface.
+M08 scope note: since M16 inner inputs are any `ObservableInput`.
 
 ## Multi-source coordination (M09)
 
@@ -190,9 +189,9 @@ conversion is deferred to the interoperability surface.
 - Deprecated result selectors receive the combined values spread as
   arguments.
 
-M09 deviations and scope notes: all inputs must be functional Observables
-(`ObservableInput` conversion deferred); deprecated scheduler arguments are
-deferred to M13; and because Observables are functions here, trailing rest
+M09 deviations and scope notes: since M16 all inputs are any
+`ObservableInput`; deprecated scheduler arguments are deferred to M18; and
+because Observables are functions here, trailing rest
 sources must be branded (kernel-created) Observables for the selector-capable
 compat surfaces — raw-function sources should use the array forms.
 
@@ -318,7 +317,8 @@ M12 scope notes: numeric delays landed with the timer surface (M14); deprecated
   `subscribeOn` defers the act of subscription itself.
 
 M13 scope notes: `animationFrameScheduler`, the deprecated `Scheduler` class
-shape, `scheduled`, and virtual time are deferred (platform/M17 surfaces);
+shape, `scheduled`, and virtual time are deferred (M18 compat-closure
+surfaces);
 work-throw propagation follows the host timer's uncaught path.
 
 ## Temporal operators (M14)
@@ -348,10 +348,9 @@ work-throw propagation follows the host timer's uncaught path.
   deadline is a synchronous `TypeError` at call time.
 - `retry`/`repeat` numeric `delay` options are `timer(delay)` notifiers.
 
-M14 scope notes: duration selectors, notifiers, and `with` factories take
-functional Observables (`ObservableInput` conversion deferred); `delayWhen`'s
-deprecated `subscriptionDelay` argument is deferred to the remaining-surface
-milestone.
+M14 scope notes: since M16 duration selectors, notifiers, and `with`
+factories take any `ObservableInput`; `delayWhen`'s deprecated
+`subscriptionDelay` argument is deferred to the remaining-surface milestone.
 
 ## Boundary & collection (M15)
 
@@ -392,11 +391,59 @@ milestone.
   the miss sentinel (`undefined` / `-1`) at completion. Predicates receive
   `(value, index, source)`.
 
-M15 scope notes: boundary notifiers, closing selectors, and group durations
-take functional Observables (`ObservableInput` conversion deferred to M16);
-the deprecated `thisArg` bindings (`every`/`find`/`findIndex`/`partition`)
+M15 scope notes: since M16 boundary notifiers, closing selectors, and group
+durations take any `ObservableInput`; the deprecated `thisArg` bindings (`every`/`find`/`findIndex`/`partition`)
 and `groupBy`'s positional `element`/`duration`/`connector` arguments are
 compat surface (`src/compat/collection.ts`).
+
+## Creation & interop (M16)
+
+- `innerFrom` converts every RxJS `ObservableInput` in RxJS's probe order:
+  function (already an Observable — returned unchanged), `Symbol.observable`
+  carrier, array-like (strings included), promise-like, async iterable,
+  iterable, readable-stream-like; anything else throws RxJS's exact
+  `TypeError`. `from` is `innerFrom` with the deprecated scheduler overload
+  deferred (M18, `scheduled`).
+- Promise sources ignore post-unsubscribe settlements; a consumer crash in
+  `next`/`complete` is reported on a later tick through the runtime
+  environment's `onUnhandledError` (`reportUnhandledError`, F6).
+- Iterable sources check `closed` after each `next` and leave the loop by
+  early return, releasing generator finalizers; stream readers release their
+  lock in a `finally`.
+- `defer` invokes its factory per subscription (throws reach the error
+  channel); `iif` is `defer` over eagerly created branches; `generate` is a
+  generator function through `defer` (optional condition loops forever);
+  `using` disposes its per-subscription resource after downstream teardown
+  and subscribes `EMPTY` for void factory results.
+- `range(n)` shuffles to `(0, n)`; non-positive counts return the shared
+  `EMPTY`; `empty()`/`never()` return the shared `EMPTY`/`NEVER`; `pairs`
+  is `from(Object.entries(obj))`.
+- `fromEvent` probes EventTarget (options passthrough) → Node-style →
+  jQuery-style registries and fans array-like targets through the flattening
+  kernel; multi-argument events emit argument arrays. `fromEventPattern`
+  passes the registration return value to the remove handler.
+- `bindCallback`/`bindNodeCallback` funnel one callback invocation per
+  argument application into an AsyncSubject (late subscribers replay), keep
+  RxJS's `isAsync`/`isComplete` completion dance, split error-first results
+  (node style), pass the call-site `this` through, and ride
+  `subscribeOn`/`observeOn` for the scheduler form.
+- `firstValueFrom` resolves the first value and unsubscribes; `lastValueFrom`
+  resolves the final value at completion; empty sources reject with
+  `EmptyError` unless a `defaultValue` config is given.
+- `isObservable` answers the construction brand (the representational analog
+  of `instanceof Observable`); `observable` is `Symbol.observable` or the
+  `'@@observable'` ponyfill key.
+- The conversion boundary retires the M05-M15 functional-Observables-only
+  scope notes: projections, notifiers, duration/closing selectors,
+  coordination inputs, recovery/fallback factories, and share reset /
+  connect selector factories accept any `ObservableInput` at the same sites
+  where RxJS converts.
+
+M16 scope notes: deprecated scheduler arguments of
+`from`/`range`/`empty`/`pairs`/`generate` ride `scheduled` (deferred to
+M18); a function carrying `Symbol.observable` is taken as a functional
+Observable, not an interop carrier; the jQuery-style handler type drops the
+`this: TContext` typing (kernel purity).
 
 ## Algebraic structures (F8)
 
@@ -442,4 +489,4 @@ policy's algebra separately.
 
 ## Differential evidence
 
-Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contained 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies; the F-work added kernel-operator suites, M06 added 21 selection/gating traces, M07 added 15 flattening-machine traces, M08 added 17 flattening-operator traces, M09 added 19 coordination traces, M10 added 10 subject traces, M11 added 11 sharing traces, M12 added 13 error/resubscription traces, and M13 adds 7 scheduler traces for a current total of 179 differential tests.
+Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contained 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies; the F-work added kernel-operator suites, M06 added 21 selection/gating traces, M07 added 15 flattening-machine traces, M08 added 17 flattening-operator traces, M09 added 19 coordination traces, M10 added 10 subject traces, M11 added 11 sharing traces, M12 added 13 error/resubscription traces, M13 added 7 scheduler traces, M14 added 23 temporal traces, M15 added 42 boundary/collection traces, and M16 adds 19 creation/interop traces for a current total of 263 differential tests.

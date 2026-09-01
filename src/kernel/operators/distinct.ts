@@ -1,16 +1,15 @@
-import type { Observable } from '../observable.ts';
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import { createOperatorSubscriber, operate, subscribeOperator, type MonoTypeOperatorFunction } from '../operator.ts';
 
 /**
  * Emits values whose selected key has not been seen in the current subscription.
  *
- * M05 supports functional Observable flushes. Full RxJS `ObservableInput`
- * conversion for the flushes parameter is deferred until the creation/input
- * interoperability surface is implemented.
+ * Since M16 the flushes source is any `ObservableInput`, converted on
+ * subscribe.
  */
 export const distinct = <T, K = T>(
   keySelector?: (value: T) => K,
-  flushes?: Observable<unknown>
+  flushes?: ObservableInput<unknown>
 ): MonoTypeOperatorFunction<T> =>
   operate((source, destination) => {
     const distinctKeys = new Set<unknown>();
@@ -31,7 +30,7 @@ export const distinct = <T, K = T>(
         () => distinctKeys.clear(),
         () => undefined
       );
-      subscribeOperator(flushes, flushSubscriber);
+      subscribeOperator(innerFrom(flushes), flushSubscriber);
     }
 
     return undefined;

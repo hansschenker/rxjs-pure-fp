@@ -1,3 +1,4 @@
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import { createObservable, executeSource, type Observable } from '../observable.ts';
 import {
   createOperatorSubscriber,
@@ -23,9 +24,9 @@ export type GroupByOptions<T, K, E> = {
   /**
    * Per-group lifetime notifier: its first emission (or completion) completes
    * the group; a later source value under the same key opens a fresh group.
-   * M15 scope: must return a functional Observable.
+   * Since M16 it may return any `ObservableInput`.
    */
-  readonly duration?: ((grouped: GroupedObservable<K, E>) => Observable<unknown>) | undefined;
+  readonly duration?: ((grouped: GroupedObservable<K, E>) => ObservableInput<unknown>) | undefined;
   /** Replaces the default per-group `Subject` (e.g. with a replaying one). */
   readonly connector?: (() => Subject<E>) | undefined;
 };
@@ -105,7 +106,7 @@ export function groupBy<T, K, E>(
       () => groups.clear()
     );
 
-    const startDuration = (key: K, group: Subject<E>, notifier: Observable<unknown>): void => {
+    const startDuration = (key: K, group: Subject<E>, notifier: ObservableInput<unknown>): void => {
       let durationSubscriber: Subscriber<unknown> | null = null;
       // The duration notifier's destination is the group itself (RxJS): its
       // error/completion terminates just that group, and a first emission
@@ -127,7 +128,7 @@ export function groupBy<T, K, E>(
         onFinalize: () => groups.delete(key),
       });
       sourceSubscriber.add(durationSubscriber);
-      executeSource(notifier, durationSubscriber);
+      executeSource(innerFrom(notifier), durationSubscriber);
     };
 
     const createGrouped = (key: K, group: Subject<E>): GroupedObservable<K, E> => {

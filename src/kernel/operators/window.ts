@@ -1,3 +1,4 @@
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import type { Observable } from '../observable.ts';
 import {
   createOperatorSubscriber,
@@ -13,11 +14,11 @@ import { createSubject, type Subject } from '../subject.ts';
  * window is a Subject the source feeds; each `windowBoundaries` emission
  * completes it and opens the next. The first window opens immediately on
  * subscription. Source errors reach both the open window and the result;
- * boundary completion is swallowed (`noop`). M15 scope: the boundary notifier
- * must be a functional Observable.
+ * boundary completion is swallowed (`noop`). Since M16 the boundary notifier
+ * is any `ObservableInput`, converted on subscribe.
  */
 export const window = <T>(
-  windowBoundaries: Observable<unknown>
+  windowBoundaries: ObservableInput<unknown>
 ): OperatorFunction<T, Observable<T>> =>
   operate((source, destination) => {
     let windowSubject: Subject<T> | null = createSubject<T>();
@@ -42,7 +43,7 @@ export const window = <T>(
     );
 
     subscribeOperator(
-      windowBoundaries,
+      innerFrom(windowBoundaries),
       createOperatorSubscriber<unknown, Observable<T>>(
         destination,
         () => {

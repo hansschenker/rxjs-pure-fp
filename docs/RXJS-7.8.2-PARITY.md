@@ -1,28 +1,28 @@
 # RxJS 7.8.2 Parity
 
-## Current milestone: M15 — Boundary & Collection (Session 4 complete)
+## Current milestone: M16 — Creation & Interop (Session 5 complete)
 
-Sessions 1 (M01-M05), 2 (M06-M10), 3 (M11-M14), and 4 (M15) are complete.
-Between M05 and M06, the F1-F8 functional-deepening work
+Sessions 1 (M01-M05), 2 (M06-M10), 3 (M11-M14), 4 (M15), and 5 (M16) are
+complete. Between M05 and M06, the F1-F8 functional-deepening work
 (docs/FP-ROADMAP.md) restructured the source into `src/kernel/**` and
-`src/compat/**` without changing behavioral scope. M15 turns the M10
-Subject hub and the M14 timer surface into value boundaries — the buffer
-and window families, `groupBy`/`partition` — plus the reduce-style
-collection queries.
+`src/compat/**` without changing behavioral scope. M16 lands `innerFrom` —
+one `ObservableInput` conversion boundary — plus the creation and interop
+surface built over it, and retires every functional-Observables-only
+deferral recorded across M05-M15.
 
-| Dimension | M15 status |
+| Dimension | M16 status |
 | --- | --- |
 | Behavioral oracle | pinned `rxjs@7.8.2` |
-| Architecture gate | passes across 114 TypeScript source files |
-| Unit tests | 141 / 141 |
-| Differential tests | 244 / 244 total |
-| New M15 differential traces | 42 |
-| RxJS root exports implemented | 119 / 175 = 68.0% |
-| Functional root extensions | 16 |
+| Architecture gate | passes across 127 TypeScript source files |
+| Unit tests | 178 / 178 |
+| Differential tests | 263 / 263 total |
+| New M16 differential traces | 19 |
+| RxJS root exports implemented | 137 / 175 = 78.3% |
+| Functional root extensions | 17 |
 | Unexpected root exports | 0 |
-| Distribution architecture | passes across 228 emitted JavaScript files |
+| Distribution architecture | passes across 254 emitted JavaScript files |
 
-## Root parity exports through M15
+## Root parity exports through M16
 
 ### Runtime/core
 
@@ -49,6 +49,27 @@ collection queries.
 - `EMPTY`
 - `timer`
 - `interval`
+- `from`
+- `defer`
+- `iif`
+- `range`
+- `generate`
+- `using`
+- `empty`
+- `never`
+- `NEVER`
+- `pairs`
+- `fromEvent`
+- `fromEventPattern`
+- `bindCallback`
+- `bindNodeCallback`
+
+### Interop & consumption
+
+- `observable`
+- `isObservable`
+- `firstValueFrom`
+- `lastValueFrom`
 
 ### Projection/querying
 
@@ -255,7 +276,7 @@ Certified for:
 - functional Observable flush source clearing the Set;
 - SameValueZero/Set behavior such as NaN de-duplication.
 
-**Scope note:** RxJS accepts any `ObservableInput` as the `flushes` argument. M05 only claims the flush semantics when `flushes` is already a functional Observable. Full `ObservableInput` conversion is deferred to the input/interoperability milestones.
+**Scope note:** since M16 the `flushes` argument accepts any `ObservableInput`, converted by `innerFrom` at the subscribe boundary.
 
 ### `distinctUntilChanged`
 
@@ -313,9 +334,8 @@ Certified for:
   (skipUntil);
 - notifier errors becoming errors of the result.
 
-**Scope note:** notifiers must already be functional Observables; RxJS
-`ObservableInput` conversion is deferred to the interoperability milestones
-(same policy as the `distinct` flush argument).
+**Scope note:** since M16 notifiers accept any `ObservableInput` (the same
+conversion as the `distinct` flush argument).
 
 ### `first` / `last` / `single` / `elementAt` / `defaultIfEmpty` / `throwIfEmpty`
 
@@ -352,8 +372,8 @@ rxjs `mergeMap`/`concatMap`/`switchMap`/`exhaustMap` — for:
 - downstream unsubscription tearing down outer and live inners;
 - empty inners and fully synchronous flattening.
 
-**Scope note:** projected inners must already be functional Observables; RxJS
-`ObservableInput` conversion is deferred to the interoperability milestones.
+**Scope note:** since M16 projected inners accept any `ObservableInput`,
+converted by the flattening machine at inner start.
 
 ## M08 certified scope
 
@@ -392,8 +412,7 @@ projection, inner values re-entering admission), empty sources, bounded
 concurrency with buffered feedback, and the `concurrent < 1 → Infinity`
 normalization.
 
-**Scope note:** inner inputs must already be functional Observables; RxJS
-`ObservableInput` conversion is deferred to the interoperability milestones.
+**Scope note:** since M16 inner inputs accept any `ObservableInput`.
 
 ## M09 certified scope
 
@@ -433,8 +452,8 @@ completion when any source completes without emitting; error propagation.
 Certified for: companion-before-source subscription order; gating until all
 companions have emitted; ignored companion completions; project overload.
 
-**Scope notes / deviations:** inputs must be functional Observables
-(`ObservableInput` deferred); deprecated scheduler arguments deferred to M13;
+**Scope notes / deviations:** since M16 inputs accept any `ObservableInput`;
+deprecated scheduler arguments deferred to M18;
 trailing rest sources must be branded (kernel-created) Observables on the
 selector-capable compat surfaces because Observables are functions in this
 representation — array forms carry raw-function sources.
@@ -485,8 +504,63 @@ hub records (the documented sharing topology) and are not frozen.
 - M12: 13 error/resubscription traces
 - M13: 7 scheduler traces
 - M14: 23 temporal traces
+- M15: 42 boundary/collection traces
+- M16: 19 creation/interop traces
 
-Total: **202 / 202** differential tests.
+Total: **263 / 263** differential tests.
+
+## M16 certified scope
+
+`from` / `innerFrom`: conversion of functional Observables (returned by
+reference), `Symbol.observable` interop carriers (teardown returned through
+the interop subscription), array-likes including strings, promise-likes
+(post-unsubscribe settlements ignored; consumer crashes reported through the
+runtime environment), iterables (early unsubscribe releases generator
+finalizers), async iterables, and readable-stream-likes (reader lock
+released in `finally`); RxJS's exact `TypeError` for unconvertible inputs.
+`defer`: factory per subscription, factory throws to the error channel.
+`iif`: condition per subscription over eagerly created inputs. `range`:
+argument shuffle (`range(n)` counts `0..n-1`), shared `EMPTY` for
+non-positive counts, closed-loop early stop. `generate`: positional and
+options forms, optional condition (infinite loop), result selectors, iterate
+throws. `using`: one resource per subscription disposed after downstream
+teardown; void factory results subscribe `EMPTY`. `empty()` / `never()`:
+the shared `EMPTY` / `NEVER` constants. `pairs`: `Object.entries` order.
+`fromEvent`: EventTarget (options passthrough), Node-style, and
+jQuery-style registries plus array-like target fan-out; multi-argument
+events emitted as argument arrays; the deprecated result selector.
+`fromEventPattern`: registration signal passed to removal; teardown-free
+without a remove handler. `bindCallback` / `bindNodeCallback`: one callback
+invocation per argument application with AsyncSubject replay, RxJS's
+sync/async completion dance, error-first splitting (node style), the
+deprecated result selector, and the scheduler form over
+`subscribeOn`/`observeOn`. `firstValueFrom` / `lastValueFrom`: first-value
+early teardown, final-value resolution, `EmptyError` rejections and
+`defaultValue` configs, error rejections. `isObservable` / `observable`:
+construction-brand predicate and the `Symbol.observable` ponyfill key.
+
+The conversion boundary also retires the M05-M15 deferrals — certified
+differentially with array, promise, iterable, and interop inners: flattening
+projections (`mergeMap` family, `expand`, `mergeScan`/`switchScan`, the
+`*All` flatteners), notifiers (`takeUntil`, `skipUntil`, `buffer`, `window`,
+`sample`, `distinct` flushes), duration/closing selectors (`audit`,
+`debounce`, `throttle`, `delayWhen`, the toggle/when families, `groupBy`
+durations), coordination inputs (`combineLatest`, `concat`, `merge`, `race`,
+`zip`, `forkJoin`, `withLatestFrom`, the `*With` operators, `partition`),
+recovery/fallback factories (`catchError`, `timeout`/`timeoutWith`,
+`retry`/`repeat` delay factories), and `share` reset / `connect` selector
+factories.
+
+**Deviations/deferrals:** the deprecated scheduler arguments of `from`,
+`range`, `empty`, `pairs`, and `generate` ride `scheduled` and are deferred
+to M18; a function carrying `Symbol.observable` is used as a functional
+Observable, not an interop carrier (functions are Observables in this
+representation); `isObservable` answers the construction brand — the
+representational analog of RxJS's `instanceof` check — so raw unbranded
+initializer functions are not recognized, exactly as a plain `{subscribe}`
+object is not an RxJS Observable; the jQuery-style handler type drops RxJS's
+`this: TContext` typing (kernel purity); `firstValueFrom`/`lastValueFrom`
+construct platform Promises (gate-allowed since M16).
 
 ## M15 certified scope
 
@@ -518,9 +592,8 @@ sentinels (`true` on empty `every`, `undefined`, `-1`), `(value, index,
 source)` predicate arity, predicate throws, and the deprecated `thisArg`
 compat bindings.
 
-**Deviations/deferrals:** boundary notifiers, closing selectors, and group
-durations must be functional Observables (`ObservableInput` conversion
-deferred to M16); `groupBy`'s deprecated positional
+**Deviations/deferrals:** since M16, boundary notifiers, closing selectors,
+and group durations accept any `ObservableInput`; `groupBy`'s deprecated positional
 `element`/`duration`/`connector` arguments are compat surface normalized
 onto the kernel options record.
 
@@ -548,8 +621,8 @@ deadline/fallback, the deprecated `timeout(due, scheduler)` overload.
 `retry` / `repeat`: numeric `delay` options wired through `timer` (closing
 the M12 deferral).
 
-**Deviations/deferrals:** duration selectors, notifiers, and `with` factories
-must return functional Observables (`ObservableInput` conversion deferred);
+**Deviations/deferrals:** since M16, duration selectors, notifiers, and
+`with` factories accept any `ObservableInput`;
 `delayWhen`'s deprecated `subscriptionDelay` argument deferred to the
 remaining-surface milestone; `TimeoutError` is a functional factory over
 platform `Error` (identity via `name`), like the other parity errors.
@@ -600,7 +673,7 @@ scheduler arguments deferred until clocks land.
 
 ## Interpretation of export parity
 
-The current 119/175 score measures root-name coverage only. It is not a direct percentage of engineering completion.
+The current 137/175 score measures root-name coverage only. It is not a direct percentage of engineering completion.
 
 A root export can also have intentionally deferred overload/interoperability scope. Such gaps are recorded explicitly rather than hidden by the export count.
 

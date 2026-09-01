@@ -1,4 +1,4 @@
-import type { Observable } from '../observable.ts';
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import {
   createOperatorSubscriber,
   operate,
@@ -23,7 +23,7 @@ export type ThrottleConfig = {
  * same closed-subscriber state behind.
  */
 export const throttle = <T>(
-  durationSelector: (value: T) => Observable<unknown>,
+  durationSelector: (value: T) => ObservableInput<unknown>,
   config?: ThrottleConfig
 ): MonoTypeOperatorFunction<T> =>
   operate((source, destination) => {
@@ -53,7 +53,7 @@ export const throttle = <T>(
 
     const startThrottle = (value: T): void => {
       throttled = subscribeOperator(
-        durationSelector(value),
+        innerFrom(durationSelector(value)),
         createOperatorSubscriber<unknown, T>(destination, endThrottling, cleanupThrottling)
       );
     };

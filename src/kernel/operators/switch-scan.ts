@@ -1,5 +1,6 @@
+import type { ObservableInput } from '../interop.ts';
 import { flattenWith, latestPolicy } from '../flattening.ts';
-import { createObservable, type Observable } from '../observable.ts';
+import { createObservable } from '../observable.ts';
 import type { OperatorFunction } from '../operator.ts';
 
 /**
@@ -7,7 +8,7 @@ import type { OperatorFunction } from '../operator.ts';
  * (latest) inner updates the per-subscription accumulation state.
  */
 export const switchScan = <T, R>(
-  accumulator: (accumulated: R, value: T, index: number) => Observable<R>,
+  accumulator: (accumulated: R, value: T, index: number) => ObservableInput<R>,
   seed: R
 ): OperatorFunction<T, R> =>
   (source) =>

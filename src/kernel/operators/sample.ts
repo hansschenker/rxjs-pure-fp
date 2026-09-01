@@ -1,4 +1,4 @@
-import type { Observable } from '../observable.ts';
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import {
   createOperatorSubscriber,
   operate,
@@ -13,7 +13,7 @@ import { noop } from '../pipe.ts';
  * source completion completes the result immediately, while notifier
  * completion is swallowed (`noop`) — only notifier values and errors matter.
  */
-export const sample = <T>(notifier: Observable<unknown>): MonoTypeOperatorFunction<T> =>
+export const sample = <T>(notifier: ObservableInput<unknown>): MonoTypeOperatorFunction<T> =>
   operate((source, destination) => {
     let hasValue = false;
     let lastValue: T | null = null;
@@ -27,7 +27,7 @@ export const sample = <T>(notifier: Observable<unknown>): MonoTypeOperatorFuncti
     );
 
     subscribeOperator(
-      notifier,
+      innerFrom(notifier),
       createOperatorSubscriber<unknown, T>(
         destination,
         () => {

@@ -1,4 +1,5 @@
-import { executeSource, type Observable } from '../observable.ts';
+import { innerFrom, type ObservableInput } from '../interop.ts';
+import { executeSource } from '../observable.ts';
 import {
   createOperatorSubscriber,
   operate,
@@ -13,13 +14,12 @@ import { noop } from '../pipe.ts';
  * destination; notifier completion is deliberately swallowed (`noop`);
  * notifier errors flow downstream.
  *
- * M06 scope: the notifier must be a functional Observable. `ObservableInput`
- * conversion is deferred to the interoperability surface.
+ * Since M16 the notifier is any `ObservableInput`, converted on subscribe.
  */
-export const takeUntil = <T>(notifier: Observable<unknown>): MonoTypeOperatorFunction<T> =>
+export const takeUntil = <T>(notifier: ObservableInput<unknown>): MonoTypeOperatorFunction<T> =>
   operate((source, destination) => {
     subscribeOperator(
-      notifier,
+      innerFrom(notifier),
       createOperatorSubscriber<unknown, T>(destination, () => destination.complete(), noop)
     );
 

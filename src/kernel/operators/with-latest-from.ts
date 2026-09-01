@@ -1,4 +1,4 @@
-import type { Observable } from '../observable.ts';
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import {
   createOperatorSubscriber,
   operate,
@@ -14,7 +14,7 @@ import { noop } from '../pipe.ts';
  * are errors of the result. Companions are subscribed before the source.
  */
 export const withLatestFrom = <T, O, R>(
-  sources: ReadonlyArray<Observable<O>>,
+  sources: ReadonlyArray<ObservableInput<O>>,
   project?: (...values: [T, ...O[]]) => R
 ): OperatorFunction<T, R> =>
   operate((source, destination) => {
@@ -26,7 +26,7 @@ export const withLatestFrom = <T, O, R>(
     for (let index = 0; index < length; index += 1) {
       const otherIndex = index;
       subscribeOperator(
-        sources[otherIndex] as Observable<O>,
+        innerFrom(sources[otherIndex] as ObservableInput<O>),
         createOperatorSubscriber<O, R>(
           destination,
           (value) => {

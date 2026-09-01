@@ -1,3 +1,4 @@
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import type { Observable } from '../observable.ts';
 import { mergeAll } from '../operators/merge-all.ts';
 import { EMPTY } from './empty.ts';
@@ -9,11 +10,11 @@ import { of } from './of.ts';
  * (RxJS `innerFrom` identity); no sources is `EMPTY`.
  */
 export const merge = <T>(
-  sources: ReadonlyArray<Observable<T>>,
+  sources: ReadonlyArray<ObservableInput<T>>,
   concurrent = Infinity
 ): Observable<T> =>
   sources.length === 0
     ? EMPTY
     : sources.length === 1
-      ? (sources[0] as Observable<T>)
+      ? innerFrom(sources[0] as ObservableInput<T>)
       : mergeAll<T>(concurrent)(of(...sources));

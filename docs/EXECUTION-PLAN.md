@@ -12,7 +12,7 @@ Session 1  M01-M05   ✅ complete
 Session 2  M06-M10   ✅ complete
 Session 3  M11-M14   ✅ complete (M15 moved to Session 4)
 Session 4  M15       ✅ complete   boundary & collection      → 119/175 (68.0%)
-Session 5  M16       18 features   creation & interop         → 137/175 (78.3%)
+Session 5  M16       ✅ complete   creation & interop         → 137/175 (78.3%)
 Session 6  M17       19 features   materialization & op tail  → 156/175 (89.1%)
 Session 7  M18-M20   19 features   compat closure + gates     → 175/175 (100%)
 ```
@@ -145,7 +145,7 @@ reference-counted (the functional replacement for RxJS's
 durations remain functional-Observables-only until M16's `ObservableInput`
 conversion.
 
-## Session 5 — M16 Creation & Interop (18)
+## Session 5 — M16 Creation & Interop (18) ✅
 
 `from`/`innerFrom` ObservableInput conversion is the session's core: it also
 retires the "functional Observables only" deferrals recorded across
@@ -160,6 +160,17 @@ empty  never   NEVER   pairs
 isObservable   observable
 firstValueFrom lastValueFrom
 ```
+
+Landed as planned: `innerFrom` probes in RxJS's exact case order (function =
+Observable by reference, interop carrier, array-like, promise, async
+iterable, iterable, readable stream) and now converts at every kernel
+boundary that takes user inputs — the M05-M15 functional-Observables-only
+scope notes are retired. `Promise` joined the architecture gate's allowed
+constructors for `firstValueFrom`/`lastValueFrom`; promise-fed consumer
+crashes report through the F6 environment (`reportUnhandledError`).
+Deprecated scheduler arguments of `from`/`range`/`empty`/`pairs`/`generate`
+ride `scheduled` and moved to M18; `bindCallback`'s scheduler form landed on
+`subscribeOn`/`observeOn`.
 
 ## Session 6 — M17 Materialization & Operator Tail (19)
 

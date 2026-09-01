@@ -65,11 +65,44 @@ export {
   UnsubscriptionError,
 } from './compat/subscription.ts';
 export { createSubscription } from './kernel/subscription.ts';
-export { EMPTY } from './kernel/creation/empty.ts';
+export { defer } from './kernel/creation/defer.ts';
+export { EMPTY, empty } from './kernel/creation/empty.ts';
+export { from } from './kernel/creation/from.ts';
+export { fromEvent } from './kernel/creation/from-event.ts';
+export { fromEventPattern } from './kernel/creation/from-event-pattern.ts';
+export { generate } from './kernel/creation/generate.ts';
+export { iif } from './kernel/creation/iif.ts';
 export { interval } from './kernel/creation/interval.ts';
+export { NEVER, never } from './kernel/creation/never.ts';
 export { of } from './kernel/creation/of.ts';
+export { pairs } from './kernel/creation/pairs.ts';
+export { range } from './kernel/creation/range.ts';
 export { throwError } from './kernel/creation/throw-error.ts';
 export { timer } from './kernel/creation/timer.ts';
+export { using } from './kernel/creation/using.ts';
+export { innerFrom, isObservable, observable } from './kernel/interop.ts';
+export type {
+  InteropObservable,
+  InteropSubscribable,
+  ObservableInput,
+  ObservedValueOf,
+  ReadableStreamLike,
+} from './kernel/interop.ts';
+export { bindCallback, bindNodeCallback } from './compat/bind-callback.ts';
+export type {
+  BoundCallbackFunc,
+  CallbackFunc,
+  CallbackResultSelector,
+} from './compat/bind-callback.ts';
+export { firstValueFrom, lastValueFrom } from './compat/promise.ts';
+export type {
+  FirstValueFromConfig,
+  LastValueFromConfig,
+} from './compat/promise.ts';
+export type {
+  GenerateBaseOptions,
+  GenerateOptions,
+} from './kernel/creation/generate.ts';
 export {
   asapScheduler,
   asapScheduler as asap,

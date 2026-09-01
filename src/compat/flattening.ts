@@ -1,4 +1,4 @@
-import type { Observable } from '../kernel/observable.ts';
+import { innerFrom, type ObservableInput } from '../kernel/interop.ts';
 import type { OperatorFunction } from '../kernel/operator.ts';
 import { concatMap as concatMapKernel } from '../kernel/operators/concat-map.ts';
 import { exhaustMap as exhaustMapKernel } from '../kernel/operators/exhaust-map.ts';
@@ -21,25 +21,25 @@ export type FlattenResultSelector<T, I, R> = (
 ) => R;
 
 const withResultSelector = <T, I, R>(
-  project: (value: T, index: number) => Observable<I>,
+  project: (value: T, index: number) => ObservableInput<I>,
   resultSelector: FlattenResultSelector<T, I, R>
-): ((value: T, index: number) => Observable<R>) =>
+): ((value: T, index: number) => ObservableInput<R>) =>
   (value, index) =>
     mapKernel((innerValue: I, innerIndex: number) => resultSelector(value, innerValue, index, innerIndex))(
-      project(value, index)
+      innerFrom(project(value, index))
     );
 
 export function mergeMap<T, R>(
-  project: (value: T, index: number) => Observable<R>,
+  project: (value: T, index: number) => ObservableInput<R>,
   concurrent?: number
 ): OperatorFunction<T, R>;
 export function mergeMap<T, I, R>(
-  project: (value: T, index: number) => Observable<I>,
+  project: (value: T, index: number) => ObservableInput<I>,
   resultSelector: FlattenResultSelector<T, I, R>,
   concurrent?: number
 ): OperatorFunction<T, R>;
 export function mergeMap<T, I, R>(
-  project: (value: T, index: number) => Observable<I>,
+  project: (value: T, index: number) => ObservableInput<I>,
   resultSelector?: FlattenResultSelector<T, I, R> | number,
   concurrent = Infinity
 ): OperatorFunction<T, R> {
@@ -56,14 +56,14 @@ export function mergeMap<T, I, R>(
 export const flatMap = mergeMap;
 
 export function concatMap<T, R>(
-  project: (value: T, index: number) => Observable<R>
+  project: (value: T, index: number) => ObservableInput<R>
 ): OperatorFunction<T, R>;
 export function concatMap<T, I, R>(
-  project: (value: T, index: number) => Observable<I>,
+  project: (value: T, index: number) => ObservableInput<I>,
   resultSelector: FlattenResultSelector<T, I, R>
 ): OperatorFunction<T, R>;
 export function concatMap<T, I, R>(
-  project: (value: T, index: number) => Observable<I>,
+  project: (value: T, index: number) => ObservableInput<I>,
   resultSelector?: FlattenResultSelector<T, I, R>
 ): OperatorFunction<T, R> {
   return typeof resultSelector === 'function'
@@ -72,14 +72,14 @@ export function concatMap<T, I, R>(
 }
 
 export function switchMap<T, R>(
-  project: (value: T, index: number) => Observable<R>
+  project: (value: T, index: number) => ObservableInput<R>
 ): OperatorFunction<T, R>;
 export function switchMap<T, I, R>(
-  project: (value: T, index: number) => Observable<I>,
+  project: (value: T, index: number) => ObservableInput<I>,
   resultSelector: FlattenResultSelector<T, I, R>
 ): OperatorFunction<T, R>;
 export function switchMap<T, I, R>(
-  project: (value: T, index: number) => Observable<I>,
+  project: (value: T, index: number) => ObservableInput<I>,
   resultSelector?: FlattenResultSelector<T, I, R>
 ): OperatorFunction<T, R> {
   return typeof resultSelector === 'function'
@@ -88,14 +88,14 @@ export function switchMap<T, I, R>(
 }
 
 export function exhaustMap<T, R>(
-  project: (value: T, index: number) => Observable<R>
+  project: (value: T, index: number) => ObservableInput<R>
 ): OperatorFunction<T, R>;
 export function exhaustMap<T, I, R>(
-  project: (value: T, index: number) => Observable<I>,
+  project: (value: T, index: number) => ObservableInput<I>,
   resultSelector: FlattenResultSelector<T, I, R>
 ): OperatorFunction<T, R>;
 export function exhaustMap<T, I, R>(
-  project: (value: T, index: number) => Observable<I>,
+  project: (value: T, index: number) => ObservableInput<I>,
   resultSelector?: FlattenResultSelector<T, I, R>
 ): OperatorFunction<T, R> {
   return typeof resultSelector === 'function'
@@ -104,16 +104,16 @@ export function exhaustMap<T, I, R>(
 }
 
 export function mergeMapTo<T, R>(
-  innerObservable: Observable<R>,
+  innerObservable: ObservableInput<R>,
   concurrent?: number
 ): OperatorFunction<T, R>;
 export function mergeMapTo<T, I, R>(
-  innerObservable: Observable<I>,
+  innerObservable: ObservableInput<I>,
   resultSelector: FlattenResultSelector<T, I, R>,
   concurrent?: number
 ): OperatorFunction<T, R>;
 export function mergeMapTo<T, I, R>(
-  innerObservable: Observable<I>,
+  innerObservable: ObservableInput<I>,
   resultSelector?: FlattenResultSelector<T, I, R> | number,
   concurrent = Infinity
 ): OperatorFunction<T, R> {
@@ -123,33 +123,33 @@ export function mergeMapTo<T, I, R>(
   if (typeof resultSelector === 'number') {
     concurrent = resultSelector;
   }
-  return mergeMap<T, R>(() => innerObservable as unknown as Observable<R>, concurrent);
+  return mergeMap<T, R>(() => innerObservable as unknown as ObservableInput<R>, concurrent);
 }
 
-export function concatMapTo<T, R>(innerObservable: Observable<R>): OperatorFunction<T, R>;
+export function concatMapTo<T, R>(innerObservable: ObservableInput<R>): OperatorFunction<T, R>;
 export function concatMapTo<T, I, R>(
-  innerObservable: Observable<I>,
+  innerObservable: ObservableInput<I>,
   resultSelector: FlattenResultSelector<T, I, R>
 ): OperatorFunction<T, R>;
 export function concatMapTo<T, I, R>(
-  innerObservable: Observable<I>,
+  innerObservable: ObservableInput<I>,
   resultSelector?: FlattenResultSelector<T, I, R>
 ): OperatorFunction<T, R> {
   return typeof resultSelector === 'function'
     ? concatMap(() => innerObservable, resultSelector)
-    : concatMap<T, R>(() => innerObservable as unknown as Observable<R>);
+    : concatMap<T, R>(() => innerObservable as unknown as ObservableInput<R>);
 }
 
-export function switchMapTo<T, R>(innerObservable: Observable<R>): OperatorFunction<T, R>;
+export function switchMapTo<T, R>(innerObservable: ObservableInput<R>): OperatorFunction<T, R>;
 export function switchMapTo<T, I, R>(
-  innerObservable: Observable<I>,
+  innerObservable: ObservableInput<I>,
   resultSelector: FlattenResultSelector<T, I, R>
 ): OperatorFunction<T, R>;
 export function switchMapTo<T, I, R>(
-  innerObservable: Observable<I>,
+  innerObservable: ObservableInput<I>,
   resultSelector?: FlattenResultSelector<T, I, R>
 ): OperatorFunction<T, R> {
   return typeof resultSelector === 'function'
     ? switchMap(() => innerObservable, resultSelector)
-    : switchMap<T, R>(() => innerObservable as unknown as Observable<R>);
+    : switchMap<T, R>(() => innerObservable as unknown as ObservableInput<R>);
 }

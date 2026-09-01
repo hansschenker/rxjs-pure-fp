@@ -1,3 +1,4 @@
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import type { Observable } from '../observable.ts';
 import { filter } from '../operators/filter.ts';
 
@@ -10,9 +11,12 @@ import { filter } from '../operators/filter.ts';
  * surface (`src/compat/collection.ts`).
  */
 export const partition = <T>(
-  source: Observable<T>,
+  source: ObservableInput<T>,
   predicate: (value: T, index: number) => boolean
-): [Observable<T>, Observable<T>] => [
-  filter<T>(predicate)(source),
-  filter<T>((value, index) => !predicate(value, index))(source),
-];
+): [Observable<T>, Observable<T>] => {
+  const converted = innerFrom(source);
+  return [
+    filter<T>(predicate)(converted),
+    filter<T>((value, index) => !predicate(value, index))(converted),
+  ];
+};

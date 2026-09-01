@@ -1,4 +1,4 @@
-import type { Observable } from '../observable.ts';
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import {
   createOperatorSubscriber,
   operate,
@@ -19,18 +19,18 @@ const removeBuffer = <T>(buffers: T[][], buffer: T[]): void => {
  * Each `openings` value starts a buffer; `closingSelector(openValue)` returns
  * the notifier whose first emission closes exactly that buffer, so buffers
  * overlap freely. Source completion flushes still-open buffers in opening
- * order; opening/closing completions are swallowed (`noop`). M15 scope:
- * openings and selector results must be functional Observables.
+ * order; opening/closing completions are swallowed (`noop`). Since M16,
+ * openings and selector results are any `ObservableInput`.
  */
 export const bufferToggle = <T, O>(
-  openings: Observable<O>,
-  closingSelector: (openValue: O) => Observable<unknown>
+  openings: ObservableInput<O>,
+  closingSelector: (openValue: O) => ObservableInput<unknown>
 ): OperatorFunction<T, T[]> =>
   operate((source, destination) => {
     const buffers: T[][] = [];
 
     subscribeOperator(
-      openings,
+      innerFrom(openings),
       createOperatorSubscriber<O, T[]>(
         destination,
         (openValue) => {
@@ -44,7 +44,7 @@ export const bufferToggle = <T, O>(
           };
           closingSubscription.add(
             subscribeOperator(
-              closingSelector(openValue),
+              innerFrom(closingSelector(openValue)),
               createOperatorSubscriber<unknown, T[]>(destination, emitBuffer, noop)
             )
           );

@@ -1,6 +1,7 @@
 import { isValidDate } from '../creation/timer.ts';
 import { createTimeoutError } from '../errors.ts';
-import { executeSource, type Observable } from '../observable.ts';
+import { innerFrom, type ObservableInput } from '../interop.ts';
+import { executeSource } from '../observable.ts';
 import {
   createOperatorSubscriber,
   operate,
@@ -21,7 +22,7 @@ export type TimeoutConfig<T, R = T, M = unknown> = {
   readonly first?: number | Date | undefined;
   readonly each?: number | undefined;
   readonly scheduler?: Scheduler | undefined;
-  readonly with?: ((info: TimeoutInfo<T, M>) => Observable<R>) | undefined;
+  readonly with?: ((info: TimeoutInfo<T, M>) => ObservableInput<R>) | undefined;
   readonly meta?: M | undefined;
 };
 
@@ -52,7 +53,7 @@ export function timeout<T, R, M>(
   if (first == null && each == null) {
     throw new TypeError('No timeout provided.');
   }
-  const fallback: (info: TimeoutInfo<T, M>) => Observable<T | R> =
+  const fallback: (info: TimeoutInfo<T, M>) => ObservableInput<T | R> =
     withFactory ??
     ((info) => {
       throw createTimeoutError(info);
@@ -70,7 +71,7 @@ export function timeout<T, R, M>(
         () => {
           try {
             originalSourceSubscription.unsubscribe();
-            executeSource(fallback({ meta, lastValue, seen }), destination);
+            executeSource(innerFrom(fallback({ meta, lastValue, seen })), destination);
           } catch (error) {
             destination.error(error);
           }

@@ -1,4 +1,4 @@
-import type { Observable } from '../observable.ts';
+import { innerFrom, type ObservableInput } from '../interop.ts';
 import {
   createOperatorSubscriber,
   operate,
@@ -17,7 +17,7 @@ import type { Subscriber } from '../sink.ts';
  * finalize hook, as in RxJS.
  */
 export const debounce = <T>(
-  durationSelector: (value: T) => Observable<unknown>
+  durationSelector: (value: T) => ObservableInput<unknown>
 ): MonoTypeOperatorFunction<T> =>
   operate((source, destination) => {
     let hasValue = false;
@@ -44,7 +44,7 @@ export const debounce = <T>(
           hasValue = true;
           lastValue = value;
           durationSubscriber = createOperatorSubscriber<unknown, T>(destination, emit, noop);
-          subscribeOperator(durationSelector(value), durationSubscriber);
+          subscribeOperator(innerFrom(durationSelector(value)), durationSubscriber);
         },
         () => {
           emit();
