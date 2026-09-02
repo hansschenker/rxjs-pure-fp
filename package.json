@@ -30,6 +30,13 @@
       "es2015": "./dist/esm/operators/index.js",
       "default": "./dist/esm/operators/index.js"
     },
+    "./testing": {
+      "types": "./dist/types/testing/index.d.ts",
+      "node": "./dist/cjs/testing/index.js",
+      "require": "./dist/cjs/testing/index.js",
+      "es2015": "./dist/esm/testing/index.js",
+      "default": "./dist/esm/testing/index.js"
+    },
     "./package.json": "./package.json"
   },
   "engines": {

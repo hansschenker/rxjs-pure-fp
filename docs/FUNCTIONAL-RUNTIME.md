@@ -11,6 +11,7 @@ Sink           = next/error/complete protocol
 Subscription   = teardown lifecycle closure
 Subject        = multicast closure
 Scheduler      = execution-time policy
+TestScheduler  = virtual time + expectation closures
 ```
 
 ## State placement rule
@@ -34,6 +35,7 @@ Examples:
 
 - flattening machine + overlap/queue/latest/exhaust policy;
 - multicast hub + current-value/replay/final-value policy;
-- scheduler kernel + queue/asap/timer/animation-frame policy.
+- scheduler kernel + queue/asap/timer/animation-frame policy;
+- virtual-time machine + marble expectation closures (the test scheduler), with run mode as one delegate on the host edge rather than six provider slots.
 
 This is a design heuristic, not permission to over-generalize before differential tests establish a shared invariant.

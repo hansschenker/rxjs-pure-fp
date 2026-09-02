@@ -4,6 +4,7 @@ import path from 'node:path';
 import {
   CJS_INTEROP_ARTIFACTS,
   IMPLEMENTED_SUBPATHS,
+  ORACLE_SPECIFIERS,
   OUT_OF_SCOPE_SUBPATHS,
   importedNames,
   readFunctionalExports,
@@ -14,23 +15,29 @@ import {
  * M20 certification matrix. For every oracle export of every implemented
  * subpath: is it exported, and which differential suites exercise the oracle
  * name? Coverage is read from the suites themselves — the `rxjs` /
- * `rxjs/operators` import lists of `test/differential/*.test.mjs` — so the
- * matrix is derived, never hand-maintained. The two CommonJS interop
- * artifacts are certified by the package gate instead. Every exported name
- * must be certified; the tool writes `docs/CERTIFICATION-MATRIX.md` and
- * regenerates `feature-parity-list.md`, then fails on any gap.
+ * `rxjs/operators` / `rxjs/testing` import lists of
+ * `test/differential/*.test.mjs` — so the matrix is derived, never
+ * hand-maintained. The two CommonJS interop artifacts are certified by the
+ * package gate instead. Every exported name must be certified; the tool
+ * writes `docs/CERTIFICATION-MATRIX.md` and regenerates
+ * `feature-parity-list.md`, then fails on any gap.
  */
 const manifest = readManifest();
 const functionalExports = readFunctionalExports();
 const suiteDirectory = path.resolve('test/differential');
+const subpaths = Object.keys(IMPLEMENTED_SUBPATHS);
 
-const coverage = { '.': new Map(), './operators': new Map() };
-const importPattern = /import\s*\{([^}]*)\}\s*from\s*'(rxjs|rxjs\/operators)'/g;
+const coverage = Object.fromEntries(subpaths.map((subpath) => [subpath, new Map()]));
+const subpathBySpecifier = Object.fromEntries(subpaths.map((subpath) => [ORACLE_SPECIFIERS[subpath], subpath]));
+const specifierAlternatives = Object.values(ORACLE_SPECIFIERS)
+  .map((specifier) => specifier.replace(/[/]/g, '\\/'))
+  .join('|');
+const importPattern = new RegExp(`import\\s*\\{([^}]*)\\}\\s*from\\s*'(${specifierAlternatives})'`, 'g');
 for (const file of fs.readdirSync(suiteDirectory).filter((name) => name.endsWith('.test.mjs')).sort()) {
   const source = fs.readFileSync(path.join(suiteDirectory, file), 'utf8');
   const suite = file.replace(/\.test\.mjs$/, '');
   for (const match of source.matchAll(importPattern)) {
-    const subpath = match[2] === 'rxjs' ? '.' : './operators';
+    const subpath = subpathBySpecifier[match[2]];
     for (const specifier of match[1].split(',')) {
       const name = specifier.trim().split(/\s+as\s+/)[0].trim();
       if (!name) continue;
@@ -61,14 +68,24 @@ for (const [subpath, specifier] of Object.entries(IMPLEMENTED_SUBPATHS)) {
   });
 }
 
-const rootRows = rows['.'];
-const operatorRows = rows['./operators'];
-const implementedRoot = rootRows.filter((row) => row.exported).length;
-const implementedOperators = operatorRows.filter((row) => row.exported).length;
 const percent = (count, total) => ((count / total) * 100).toFixed(1);
+const implemented = (subpath) => rows[subpath].filter((row) => row.exported).length;
+const certified = (subpath) => rows[subpath].filter((row) => row.exported && row.suites.length).length;
+const total = (subpath) => rows[subpath].length;
 const suiteCount = new Set(
   Object.values(coverage).flatMap((map) => [...map.values()].flatMap((set) => [...set]))
 ).size;
+
+const surfaceLabel = (subpath) => (subpath === '.' ? '`.` (root)' : `\`${subpath}\``);
+const summaryRow = (subpath) =>
+  `| ${surfaceLabel(subpath)} | ${implemented(subpath)} / ${total(subpath)} (${percent(implemented(subpath), total(subpath))}%) | ${certified(subpath)} / ${total(subpath)} |`;
+const table = (subpath) =>
+  rows[subpath]
+    .map(
+      (row) =>
+        `| \`${row.name}\` | ${row.exported ? '✅' : '—'} | ${row.suites.length ? row.suites.join(', ') : '⚠ none'} |`
+    )
+    .join('\n');
 
 const matrix = `# Certification Matrix
 
@@ -78,25 +95,19 @@ differential suites under \`test/differential/\`. Do not edit by hand.
 
 | Surface | Exported | Certified |
 | --- | --- | --- |
-| \`.\` (root) | ${implementedRoot} / ${rootRows.length} (${percent(implementedRoot, rootRows.length)}%) | ${rootRows.filter((row) => row.exported && row.suites.length).length} / ${rootRows.length} |
-| \`./operators\` | ${implementedOperators} / ${operatorRows.length} (${percent(implementedOperators, operatorRows.length)}%) | ${operatorRows.filter((row) => row.exported && row.suites.length).length} / ${operatorRows.length} |
+${subpaths.map(summaryRow).join('\n')}
 
 A name is *certified* when at least one differential suite imports it from
 the oracle package and traces it against this implementation (the two
 CommonJS interop artifacts are certified by the package gate). ${suiteCount}
-differential suites contribute. Out-of-scope oracle subpaths, never part of
-the root-export mission: ${OUT_OF_SCOPE_SUBPATHS.map((s) => `\`${s}\``).join(', ')}.
+differential suites contribute. Out-of-scope oracle subpaths — separate
+feature surfaces over host I/O: ${OUT_OF_SCOPE_SUBPATHS.map((s) => `\`${s}\``).join(', ')}.
 
 ## Root exports (\`rxjs\`)
 
 | Export | Status | Differential suites |
 | --- | --- | --- |
-${rootRows
-  .map(
-    (row) =>
-      `| \`${row.name}\` | ${row.exported ? '✅' : '—'} | ${row.suites.length ? row.suites.join(', ') : '⚠ none'} |`
-  )
-  .join('\n')}
+${table('.')}
 
 ## Subpath exports (\`rxjs/operators\`)
 
@@ -106,12 +117,16 @@ operator-form names (\`combineLatest\`, \`concat\`, \`merge\`, \`zip\`, \`race\`
 
 | Export | Status | Differential suites |
 | --- | --- | --- |
-${operatorRows
-  .map(
-    (row) =>
-      `| \`${row.name}\` | ${row.exported ? '✅' : '—'} | ${row.suites.length ? row.suites.join(', ') : '⚠ none'} |`
-  )
-  .join('\n')}
+${table('./operators')}
+
+## Subpath exports (\`rxjs/testing\`)
+
+The marble-testing surface (M21): \`TestScheduler\` is traced by the
+\`testing\` suite against the oracle's own \`TestScheduler\`.
+
+| Export | Status | Differential suites |
+| --- | --- | --- |
+${table('./testing')}
 
 ## Functional root extensions
 
@@ -125,10 +140,11 @@ const parityList = `# Feature Parity List
 Root export parity of \`rxjs-pure-fp\` against the pinned behavioral oracle
 \`rxjs@7.8.2\`, generated from \`reference/exports.json\` and Node's view of the
 built package by \`tools/certification-matrix.mjs\` after **M20 — Differential
-Certification**.
+Certification** (M21 adds the \`rxjs/testing\` subpath).
 
-**Implemented: ${implementedRoot} / ${rootRows.length} root exports (${percent(implementedRoot, rootRows.length)}%)** — 0 unexpected exports.
-The \`rxjs/operators\` subpath is provided as well: ${implementedOperators} / ${operatorRows.length} names.
+**Implemented: ${implemented('.')} / ${total('.')} root exports (${percent(implemented('.'), total('.'))}%)** — 0 unexpected exports.
+The \`rxjs/operators\` subpath is provided as well: ${implemented('./operators')} / ${total('./operators')} names,
+and the \`rxjs/testing\` subpath: ${implemented('./testing')} / ${total('./testing')} names.
 
 An implemented name means the export exists with differentially certified
 behavior for its claimed scope (see \`docs/RXJS-7.8.2-PARITY.md\` for
@@ -137,7 +153,13 @@ per-milestone certified scope and recorded deviations, and
 
 | Implemented (rxjs-pure-fp) | Original (rxjs@7.8.2) |
 | --- | --- |
-${rootRows.map((row) => `| ${row.exported ? `\`${row.name}\` ✅` : '—'} | \`${row.name}\` |`).join('\n')}
+${rows['.'].map((row) => `| ${row.exported ? `\`${row.name}\` ✅` : '—'} | \`${row.name}\` |`).join('\n')}
+
+## \`rxjs/testing\` subpath
+
+| Implemented (rxjs-pure-fp/testing) | Original (rxjs/testing) |
+| --- | --- |
+${rows['./testing'].map((row) => `| ${row.exported ? `\`${row.name}\` ✅` : '—'} | \`${row.name}\` |`).join('\n')}
 
 ## Deliberate functional extensions (not counted as parity)
 
@@ -149,7 +171,9 @@ ${functionalExports.map((name) => `| \`${name}\` |`).join('\n')}
 fs.writeFileSync(path.resolve('feature-parity-list.md'), parityList);
 
 console.log(
-  `Certification matrix: root ${implementedRoot}/${rootRows.length}, operators ${implementedOperators}/${operatorRows.length}, ${suiteCount} suites.`
+  `Certification matrix: ${subpaths
+    .map((subpath) => `${subpath === '.' ? 'root' : subpath.slice(2)} ${implemented(subpath)}/${total(subpath)}`)
+    .join(', ')}, ${suiteCount} suites.`
 );
 if (gaps.length) {
   console.error(`Certification gaps (${gaps.length}):\n- ${gaps.join('\n- ')}`);

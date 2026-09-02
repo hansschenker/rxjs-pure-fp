@@ -28,8 +28,13 @@ export type VirtualActionFactory = <S>(
   work: SchedulerWork<S>
 ) => VirtualAction<S>;
 
+/**
+ * `maxFrames` is the frame budget a `flush` may advance to — a number, or
+ * (M21) a live policy read at every flush step, which is how a TestScheduler
+ * lifts the budget for the duration of `run()` without a mutable field.
+ */
 export type VirtualTimeConfig = {
-  readonly maxFrames?: number;
+  readonly maxFrames?: number | (() => number);
   readonly createAction?: VirtualActionFactory;
 };
 
@@ -73,6 +78,16 @@ const queueOf = (scheduler: VirtualTimeScheduler): VirtualQueue => {
   }
   return queue;
 };
+
+/**
+ * M21: the queue protocol as a spreadable carrier, the same pattern as the
+ * subscription lifecycle's `protocol`. A record composed over a virtual time
+ * scheduler (the TestScheduler) spreads this in so virtual actions accept it
+ * as their scheduler.
+ */
+export const virtualTimeProtocol = (scheduler: VirtualTimeScheduler): object => ({
+  [queueSymbol]: queueOf(scheduler),
+});
 
 /**
  * One virtual action. Its first `schedule` enqueues it at `frame + delay`;
@@ -177,7 +192,8 @@ export const createVirtualAction = <S>(
  * throws.
  */
 export const createVirtualTimeScheduler = (config: VirtualTimeConfig = {}): VirtualTimeScheduler => {
-  const { maxFrames = Infinity, createAction = createVirtualAction } = config;
+  const { maxFrames: budget = Infinity, createAction = createVirtualAction } = config;
+  const maxFrames = typeof budget === 'function' ? budget : () => budget;
   const actions: QueueEntry[] = [];
   let frame = 0;
   let index = -1;
@@ -204,7 +220,7 @@ export const createVirtualTimeScheduler = (config: VirtualTimeConfig = {}): Virt
   const flush = (): void => {
     let error: unknown;
     let entry: QueueEntry | undefined;
-    while ((entry = actions[0]) && entry.delay <= maxFrames) {
+    while ((entry = actions[0]) && entry.delay <= maxFrames()) {
       actions.shift();
       frame = entry.delay;
       if ((error = entry.execute())) {
@@ -226,7 +242,9 @@ export const createVirtualTimeScheduler = (config: VirtualTimeConfig = {}): Virt
     get index() {
       return index;
     },
-    maxFrames,
+    get maxFrames() {
+      return maxFrames();
+    },
     now: () => frame,
     flush,
     schedule: <S>(work: SchedulerWork<S>, delay = 0, state?: S): Subscription =>

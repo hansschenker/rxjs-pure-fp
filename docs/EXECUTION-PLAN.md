@@ -15,7 +15,11 @@ Session 4  M15       ✅ complete   boundary & collection      → 119/175 (68.0
 Session 5  M16       ✅ complete   creation & interop         → 137/175 (78.3%)
 Session 6  M17       ✅ complete   materialization & op tail  → 156/175 (89.1%)
 Session 7  M18-M20   ✅ complete   compat closure + gates     → 175/175 (100%)
+Session 8  M21       ✅ complete   marble testing (rxjs/testing) → + testing 3/3
 ```
+
+Session 8 went beyond the root mission: the `rxjs/testing` subpath, the one
+out-of-scope surface that is scheduling rather than host I/O.
 
 # Session 1 — M01-M05 ✅
 
@@ -235,6 +239,31 @@ measured the way the oracle manifest was captured — and M19 also provides
 the `rxjs/operators` subpath (115/115). M20 makes export parity strict and
 derives `docs/CERTIFICATION-MATRIX.md` from the differential suites' oracle
 imports: 175/175 root names, every one traced.
+
+## Session 8 — M21 Marble testing (`rxjs/testing`) ✅
+
+Beyond the root mission: the one out-of-scope subpath whose surface is
+scheduling rather than host I/O (`./ajax`, `./fetch`, `./webSocket` stay
+out). One value export, `TestScheduler`, plus the package's CommonJS interop
+artifacts:
+
+```text
+TestScheduler   __esModule   default
+```
+
+Landed: `TestScheduler` is a record composed over the M18 virtual-time
+machine (`src/testing/`), with the statics (`frameTimeFactor`,
+`parseMarbles`, `parseMarblesAsSubscriptions`) on the factory; cold
+observables are branded Observable functions and hot observables anonymous
+Subjects, each carrying its subscription log; run mode installs one delegate
+on `runtime.ts`'s host edge (`installTimerHostDelegate`) where RxJS fills
+six provider slots, and the environments' `defer` moved onto that edge
+(`timerHost.timeout`) so the configuration points are testable in run mode
+as in RxJS. The virtual scheduler's `maxFrames` became a live policy and its
+queue protocol a spreadable carrier (`virtualTimeProtocol`). The parity
+tooling gained the subpath (`IMPLEMENTED_SUBPATHS`, `ORACLE_SPECIFIERS`) and
+the matrix tool derives coverage per subpath; the `testing` differential
+suite traces every scenario against the oracle's own `TestScheduler`.
 
 # Permanent milestone gates
 

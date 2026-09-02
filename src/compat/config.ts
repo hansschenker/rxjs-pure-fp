@@ -1,5 +1,5 @@
 import type { ObservableNotification } from '../kernel/notification.ts';
-import type { RuntimeEnv } from '../kernel/runtime.ts';
+import { timerHost, type RuntimeEnv } from '../kernel/runtime.ts';
 import type { Subscriber } from '../kernel/sink.ts';
 
 export type GlobalConfig = {
@@ -26,6 +26,8 @@ export const config: GlobalConfig = {
 /**
  * Live, config-backed runtime environment (F6). The getters read `config` at
  * dispatch time, preserving the lazy-read semantics of the global surface.
+ * Deferral rides the runtime's timeout edge (RxJS's `timeoutProvider`), so a
+ * TestScheduler in run mode (M21) observes these configuration points too.
  */
 export const configEnv: RuntimeEnv = Object.freeze({
   get onUnhandledError() {
@@ -35,6 +37,6 @@ export const configEnv: RuntimeEnv = Object.freeze({
     return config.onStoppedNotification;
   },
   defer: (task: () => void): void => {
-    globalThis.setTimeout(task);
+    timerHost.timeout(task);
   },
 });

@@ -3,10 +3,11 @@
 Root export parity of `rxjs-pure-fp` against the pinned behavioral oracle
 `rxjs@7.8.2`, generated from `reference/exports.json` and Node's view of the
 built package by `tools/certification-matrix.mjs` after **M20 — Differential
-Certification**.
+Certification** (M21 adds the `rxjs/testing` subpath).
 
 **Implemented: 175 / 175 root exports (100.0%)** — 0 unexpected exports.
-The `rxjs/operators` subpath is provided as well: 115 / 115 names.
+The `rxjs/operators` subpath is provided as well: 115 / 115 names,
+and the `rxjs/testing` subpath: 3 / 3 names.
 
 An implemented name means the export exists with differentially certified
 behavior for its claimed scope (see `docs/RXJS-7.8.2-PARITY.md` for
@@ -190,6 +191,14 @@ per-milestone certified scope and recorded deviations, and
 | `zip` ✅ | `zip` |
 | `zipAll` ✅ | `zipAll` |
 | `zipWith` ✅ | `zipWith` |
+
+## `rxjs/testing` subpath
+
+| Implemented (rxjs-pure-fp/testing) | Original (rxjs/testing) |
+| --- | --- |
+| `TestScheduler` ✅ | `TestScheduler` |
+| `__esModule` ✅ | `__esModule` |
+| `default` ✅ | `default` |
 
 ## Deliberate functional extensions (not counted as parity)
 

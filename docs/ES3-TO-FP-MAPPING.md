@@ -13,6 +13,9 @@ The ES3 reference removes modern class syntax but still contains constructor/pro
 | Subject constructor inheritance | multicast closure composition |
 | Behavior/Replay/Async subject inheritance | multicast hub + state/replay/completion policy |
 | Scheduler/Action hierarchy | scheduler kernel + execution policies |
+| `TestScheduler extends VirtualTimeScheduler` | virtual-time record composed with expectation closures; statics on the factory |
+| `ColdObservable`/`HotObservable` + `SubscriptionLoggable` mixin | branded Observable function / anonymous Subject record + a logger closure |
+| provider `delegate` slots (run mode) | one closure-held delegate on the runtime's host edge |
 
 ## Reading rule
 

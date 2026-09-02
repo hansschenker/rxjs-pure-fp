@@ -23,10 +23,18 @@ export const PACKAGE_NAME = 'rxjs-pure-fp';
 export const IMPLEMENTED_SUBPATHS = {
   '.': PACKAGE_NAME,
   './operators': `${PACKAGE_NAME}/operators`,
+  './testing': `${PACKAGE_NAME}/testing`,
 };
 
-/** Oracle subpaths outside the root-export mission (separate feature surfaces). */
-export const OUT_OF_SCOPE_SUBPATHS = ['./ajax', './fetch', './testing', './webSocket'];
+/** The oracle import specifier a differential suite uses for each implemented subpath. */
+export const ORACLE_SPECIFIERS = {
+  '.': 'rxjs',
+  './operators': 'rxjs/operators',
+  './testing': 'rxjs/testing',
+};
+
+/** Oracle subpaths outside the mission (separate feature surfaces over host I/O). */
+export const OUT_OF_SCOPE_SUBPATHS = ['./ajax', './fetch', './webSocket'];
 
 export const readManifest = () => {
   const manifestPath = path.resolve('reference/exports.json');

@@ -1,9 +1,12 @@
 # RxJS 7.8.2 Parity
 
-## Current milestone: M20 — Differential Certification (Session 7 complete)
+## Current milestone: M21 — Marble Testing (Session 8 complete)
 
 Sessions 1 (M01-M05), 2 (M06-M10), 3 (M11-M14), 4 (M15), 5 (M16), 6 (M17),
-and 7 (M18-M20) are complete. Between M05 and M06, the F1-F8
+7 (M18-M20), and 8 (M21) are complete. M21 goes beyond the root mission:
+the `rxjs/testing` subpath — `TestScheduler` composed over the virtual-time
+machine, with run mode as one delegate on the runtime's host edge — certified
+against the oracle's own `TestScheduler`. Between M05 and M06, the F1-F8
 functional-deepening work (docs/FP-ROADMAP.md) restructured the source into
 `src/kernel/**` and `src/compat/**` without changing behavioral scope. M18
 closes the compat surface — the deprecated multicast family, the remaining
@@ -14,18 +17,19 @@ gives the package RxJS's shape (export map, CommonJS/ESM/declarations, the
 `rxjs/operators` subpath). M20 makes export parity strict and derives the
 per-name certification matrix from the differential suites.
 
-| Dimension | M20 status |
+| Dimension | M21 status |
 | --- | --- |
 | Behavioral oracle | pinned `rxjs@7.8.2` |
-| Architecture gate | passes across 155 TypeScript source files |
-| Unit tests | 213 / 213 |
-| Differential tests | 314 / 314 total |
-| New Session 7 differential traces | 35 (32 M18, 1 M19, 2 M20) |
+| Architecture gate | passes across 161 TypeScript source files |
+| Unit tests | 228 / 228 |
+| Differential tests | 335 / 335 total |
+| New Session 8 differential traces | 21 (M21) |
 | RxJS root exports implemented | 175 / 175 = 100% |
 | `rxjs/operators` subpath exports | 115 / 115 = 100% |
+| `rxjs/testing` subpath exports | 3 / 3 = 100% |
 | Functional root extensions | 20 |
 | Unexpected root exports | 0 |
-| Distribution architecture | passes across 310 emitted JavaScript files |
+| Distribution architecture | passes across 322 emitted JavaScript files |
 | Package parity gate | passes (import / require / ESM file / declarations agree) |
 | Certification matrix | every exported name traced (`docs/CERTIFICATION-MATRIX.md`) |
 
@@ -570,8 +574,9 @@ hub records (the documented sharing topology) and are not frozen.
 - M18: 32 compat-closure traces
 - M19: 1 operators-subpath trace
 - M20: 2 certification traces
+- M21: 21 marble-testing traces
 
-Total: **314 / 314** differential tests.
+Total: **335 / 335** differential tests.
 
 ## M18 certified scope
 
@@ -663,8 +668,8 @@ export-map shape, and for each implemented subpath the Node import view, the
 file's value exports (through the TypeScript checker, diagnostics included)
 must agree. The operator forms are differentially certified
 (`operators-subpath` suite). Out of scope, and reported as such by the tools:
-`./ajax`, `./fetch`, `./testing`, `./webSocket` — separate feature surfaces
-never part of the 175-name mission.
+`./ajax`, `./fetch`, `./webSocket` — separate feature surfaces over host
+I/O, never part of the 175-name mission (`./testing` followed in M21).
 
 ## M20 differential certification
 
@@ -677,6 +682,53 @@ suite traces; the `certification` suite closes the last twelve (the error
 factories' identities and messages, the scheduler alias names, `identity`,
 `noop`). Newer Node versions add a `module.exports` name to CommonJS
 namespaces; the snapshot and parity tools exclude it as a Node artifact.
+
+## M21 certified scope
+
+`TestScheduler.parseMarbles`: values by letter and by map, groups,
+subscription offsets (`^`), `#` with a custom or the default `'error'`
+value, emoji marbles as single frames, run-mode whitespace and time
+progression (`ms`/`s`/`m`, decimals, at the diagram start, and only after a
+space), cold observables materialized to their messages, the `!` rejection,
+and the RxJS-shaped `{ kind, value, error }` notifications.
+`parseMarblesAsSubscriptions`: `^`/`!` with and without groups, unsubscribe
+before subscribe, non-string diagrams (`Infinity` log), run-mode time
+progression, and the three error messages. `createColdObservable` /
+`createHotObservable`: subscription logs with subscribe and unsubscribe
+frames (completion, error, and marble-driven unsubscription), hot offsets
+and pre-`^` values, late subscriptions, hot observables as subjects (`next`
+outside `flush`), the `^`/`!` construction errors, the internal
+`coldObservables`/`hotObservables` lists (hot ones consumed by `flush`).
+`expectObservable`: subscription marbles (`^`, `--^`, `!`), `toBe` with
+values and error, `toEqual`, Observable-of-Observables materialized relative
+to the outer frame (`toBe` with cold values), errors thrown by operators,
+pending expectations held across flushes, `expectSubscriptions` in string
+and array form (entries without `^` filtered). Run mode: `frameTimeFactor`
+1 inside and restored after (also after a throw), `maxFrames` lifted and
+restored, `time`, `delay`/`debounceTime`/`throttleTime`/`interval`/`timer`
+on the virtualized async scheduler, asap before async before timeout at a
+shared frame (incl. nested and queue-synchronous work), interval
+cancellation, `animate` with `animationFrames` (virtual `elapsed`) and
+`animationFrameScheduler`, the animate error messages and the missing-
+`animate` error routed to the error channel, `ReplaySubject` windows and
+`timestamp` on the virtual clock, unhandled consumer errors rethrown from
+`run` (frame left at the failing action) and reported to
+`config.onUnhandledError` after the run block. Scheduler surface: `now`,
+`frame`, `index`, `maxFrames` (750 default), `createTime` in both modes and
+its error, the `maxFrames` cut-off outside run mode, direct `VirtualAction`
+construction on the record, and the run-mode delegate released afterwards
+(real timers again).
+
+**Deviations/deferrals:** `TestScheduler` is a non-constructible factory
+carrying the statics; its record is frozen, so `maxFrames` is not
+assignable (run mode is the policy that lifts it); a hot observable is an
+anonymous Subject over an inner hub, so its `closed`/`observed` fields
+describe the wrapper rather than the hub; inner-Observable materialization
+keys on the Observable brand (raw unbranded functions emitted as values are
+recorded as values); an unsubscribe marble before the subscribe frame is a
+no-op instead of RxJS's crash; asap's batch is never cancelled in virtual
+time (an emptied batch runs as a no-op immediate at the same frame, with no
+observable difference).
 
 ## M17 certified scope
 

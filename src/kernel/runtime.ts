@@ -39,9 +39,11 @@ export const reportUnhandledError = (env: RuntimeEnv, error: unknown): void => {
  * kernel uses flows through this record — the scheduler kernel consumes it,
  * and the architecture gate keeps host timer access confined to this module.
  * M18 adds the animation-frame edge (`requestFrame`/`cancelFrame`) and the
- * high-resolution clock behind `animationFrames`.
+ * high-resolution clock behind `animationFrames`. M21 adds the deferral edge
+ * (`timeout`, RxJS's `timeoutProvider`) so the environments' `defer` rides
+ * the same record, and the run-mode delegate seam below.
  */
-export type TimerId = ReturnType<typeof globalThis.setInterval>;
+export type TimerId = ReturnType<typeof globalThis.setInterval> | number;
 
 /** Opaque host animation-frame handle: the request id, or a timer under polyfills. */
 export type FrameHandle = unknown;
@@ -52,6 +54,7 @@ export type TimerHost = {
   readonly interval: (handler: () => void, delayMillis: number) => TimerId;
   readonly cancelInterval: (id: TimerId) => void;
   readonly microtask: (task: () => void) => void;
+  readonly timeout: (task: () => void) => void;
   readonly requestFrame: (handler: (frameTime: number) => void) => FrameHandle;
   readonly cancelFrame: (handle: FrameHandle) => void;
 };
@@ -70,7 +73,7 @@ type FrameHost = {
 
 const frameHost = (): FrameHost => globalThis as FrameHost;
 
-export const timerHost: TimerHost = Object.freeze({
+const nativeTimerHost: TimerHost = Object.freeze({
   now: () => Date.now(),
   performanceNow: (): number => {
     const { performance } = frameHost();
@@ -85,6 +88,9 @@ export const timerHost: TimerHost = Object.freeze({
   },
   microtask: (task: () => void): void => {
     globalThis.queueMicrotask(task);
+  },
+  timeout: (task: () => void): void => {
+    globalThis.setTimeout(task);
   },
   requestFrame: (handler: (frameTime: number) => void): FrameHandle => {
     const { requestAnimationFrame } = frameHost();
@@ -103,14 +109,59 @@ export const timerHost: TimerHost = Object.freeze({
 });
 
 /**
- * The environment used when none is injected: silent policies, host timer as
- * the deferral edge. The RxJS 7.8.2 parity environment (backed by the mutable
+ * M21: the run-mode delegation seam. RxJS's `TestScheduler.run` fills a
+ * `delegate` slot on each provider singleton (`intervalProvider`,
+ * `immediateProvider`, `timeoutProvider`, `animationFrameProvider`, the two
+ * timestamp providers) for the duration of the run, which is what makes
+ * `asyncScheduler`, `asapScheduler`, `animationFrameScheduler`, and every
+ * clock read run in virtual time without being passed around. Here the whole
+ * edge is one record, so the seam is one closure-held slot: while a delegate
+ * is installed every host call resolves through it, otherwise the native
+ * host answers. This is the documented process-wide topology of run mode,
+ * not per-execution state.
+ */
+const delegateSlot = (() => {
+  let installed: TimerHost | undefined;
+  return {
+    install: (delegate: TimerHost | undefined): void => {
+      installed = delegate;
+    },
+    resolve: (): TimerHost => installed ?? nativeTimerHost,
+  };
+})();
+
+export const installTimerHostDelegate = delegateSlot.install;
+
+export const timerHost: TimerHost = Object.freeze({
+  now: (): number => delegateSlot.resolve().now(),
+  performanceNow: (): number => delegateSlot.resolve().performanceNow(),
+  interval: (handler: () => void, delayMillis: number): TimerId =>
+    delegateSlot.resolve().interval(handler, delayMillis),
+  cancelInterval: (id: TimerId): void => {
+    delegateSlot.resolve().cancelInterval(id);
+  },
+  microtask: (task: () => void): void => {
+    delegateSlot.resolve().microtask(task);
+  },
+  timeout: (task: () => void): void => {
+    delegateSlot.resolve().timeout(task);
+  },
+  requestFrame: (handler: (frameTime: number) => void): FrameHandle =>
+    delegateSlot.resolve().requestFrame(handler),
+  cancelFrame: (handle: FrameHandle): void => {
+    delegateSlot.resolve().cancelFrame(handle);
+  },
+});
+
+/**
+ * The environment used when none is injected: silent policies, the host's
+ * deferral edge. The RxJS 7.8.2 parity environment (backed by the mutable
  * `config` object) is compat surface: `src/compat/config.ts`.
  */
 export const defaultEnv: RuntimeEnv = Object.freeze({
   onUnhandledError: null,
   onStoppedNotification: null,
   defer: (task: () => void): void => {
-    globalThis.setTimeout(task);
+    timerHost.timeout(task);
   },
 });

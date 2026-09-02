@@ -319,7 +319,9 @@ M13 scope notes: `animationFrameScheduler`, the `Scheduler` factory shape,
 `scheduled`, and virtual time landed in M18 (below); work-throw propagation
 follows the host timer's uncaught path. Since M18 the asap batch closes at
 flush start — work admitted during a flush arms the next microtask, as in
-RxJS.
+RxJS. Since M21 the edge carries the deferral `timeout` and a run-mode
+delegate slot (`installTimerHostDelegate`), so a TestScheduler can run
+every scheduler in virtual time (below).
 
 ## Temporal operators (M14)
 
@@ -558,6 +560,40 @@ scheduler (RxJS's queue path swallows a crash instead); a virtual action's
   oracle name must be traced by a differential suite, and the matrix is
   generated from the suites' oracle import lists.
 
+## Marble testing (M21)
+
+- Marble diagrams parse to frames of `frameTimeFactor` (10; 1 inside
+  `run`): `-` advances, `(…)` groups at the group's start frame, `|`/`#` are
+  terminals, `^` sets the zero frame, whitespace advances only outside run
+  mode, and run mode reads `Nms`/`Ns`/`Nm` progressions after a space.
+  Notifications are `{ kind, value, error }` records; subscription logs are
+  `{ subscribedFrame, unsubscribedFrame }`.
+- A cold observable logs each subscription and schedules its messages on
+  the scheduler at their frames, owned by the subscriber; a hot observable's
+  messages are pushed into its hub by `flush` regardless of subscribers, and
+  its log records every subscription. Unsubscription frames are logged from
+  the teardown, so completion and error close a log too.
+- `expectObservable` subscribes through a scheduled action at the
+  subscription frame (0 by default) and unsubscribes through another at the
+  `!` frame; actions scheduled earlier win at a shared frame, so an
+  unsubscribe marble at a value's frame drops the value. Emitted Observables
+  are materialized relative to the emission frame.
+- Run mode: `asyncScheduler`, `asapScheduler`, and `animationFrameScheduler`
+  run in virtual time through the host-edge delegate; at a shared frame
+  immediates (asap) run before intervals (async) before timeouts (`defer`),
+  each virtual action running exactly one; both clocks read the virtual
+  frame; frames paint only when `animate`'s marbles fire; an unhandled
+  consumer error is a throwing timeout action, so it unwinds the queue and
+  rethrows from `run` (or reaches `config.onUnhandledError`).
+- `maxFrames` is 750 outside run mode (later actions stay queued) and
+  `Infinity` inside; `frameTimeFactor` is restored after `run`, also on a
+  throw.
+
+M21 deviations: the record is frozen (`maxFrames` is policy, not a field);
+hot observables are anonymous Subjects whose state fields describe the
+wrapper; materialization keys on the Observable brand; an unsubscribe
+marble before the subscribe frame is a no-op.
+
 ## Algebraic structures (F8)
 
 Several kernel structures are named algebras. Every law below is executable:
@@ -602,4 +638,4 @@ policy's algebra separately.
 
 ## Differential evidence
 
-Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contained 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies; the F-work added kernel-operator suites, M06 added 21 selection/gating traces, M07 added 15 flattening-machine traces, M08 added 17 flattening-operator traces, M09 added 19 coordination traces, M10 added 10 subject traces, M11 added 11 sharing traces, M12 added 13 error/resubscription traces, M13 added 7 scheduler traces, M14 added 23 temporal traces, M15 added 42 boundary/collection traces, M16 added 19 creation/interop traces, M17 added 16 materialization/operator-tail traces, and Session 7 adds 32 compat-closure, 1 operators-subpath, and 2 certification traces for a final total of 314 differential tests.
+Each semantic claim is backed by scenario traces against `rxjs@7.8.2`. By the end of M05 the suite contained 49 passing differential tests spanning lifecycle, notification, execution, first pipeline, and stateful first-order operator policies; the F-work added kernel-operator suites, M06 added 21 selection/gating traces, M07 added 15 flattening-machine traces, M08 added 17 flattening-operator traces, M09 added 19 coordination traces, M10 added 10 subject traces, M11 added 11 sharing traces, M12 added 13 error/resubscription traces, M13 added 7 scheduler traces, M14 added 23 temporal traces, M15 added 42 boundary/collection traces, M16 added 19 creation/interop traces, M17 added 16 materialization/operator-tail traces, Session 7 adds 32 compat-closure, 1 operators-subpath, and 2 certification traces (314), and Session 8 adds 21 marble-testing traces against the oracle's own `TestScheduler` for a final total of 335 differential tests.

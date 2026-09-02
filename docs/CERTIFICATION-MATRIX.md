@@ -8,12 +8,13 @@ differential suites under `test/differential/`. Do not edit by hand.
 | --- | --- | --- |
 | `.` (root) | 175 / 175 (100.0%) | 175 / 175 |
 | `./operators` | 115 / 115 (100.0%) | 115 / 115 |
+| `./testing` | 3 / 3 (100.0%) | 3 / 3 |
 
 A name is *certified* when at least one differential suite imports it from
 the oracle package and traces it against this implementation (the two
-CommonJS interop artifacts are certified by the package gate). 22
-differential suites contribute. Out-of-scope oracle subpaths, never part of
-the root-export mission: `./ajax`, `./fetch`, `./testing`, `./webSocket`.
+CommonJS interop artifacts are certified by the package gate). 23
+differential suites contribute. Out-of-scope oracle subpaths — separate
+feature surfaces over host I/O: `./ajax`, `./fetch`, `./webSocket`.
 
 ## Root exports (`rxjs`)
 
@@ -30,8 +31,8 @@ the root-export mission: `./ajax`, `./fetch`, `./testing`, `./webSocket`.
 | `Notification` | ✅ | materialization-tail |
 | `NotificationKind` | ✅ | materialization-tail |
 | `ObjectUnsubscribedError` | ✅ | certification |
-| `Observable` | ✅ | boundary-collection, compat-closure, coordination, error-resubscription, flattening, flattening-operators, fp-kernel, materialization-tail, observable, projection-querying, scheduler, selection-gating, sharing, temporal |
-| `ReplaySubject` | ✅ | compat-closure, subjects |
+| `Observable` | ✅ | boundary-collection, compat-closure, coordination, error-resubscription, flattening, flattening-operators, fp-kernel, materialization-tail, observable, projection-querying, scheduler, selection-gating, sharing, temporal, testing |
+| `ReplaySubject` | ✅ | compat-closure, subjects, testing |
 | `Scheduler` | ✅ | compat-closure |
 | `SequenceError` | ✅ | certification |
 | `Subject` | ✅ | boundary-collection, compat-closure, subjects, temporal |
@@ -39,16 +40,16 @@ the root-export mission: `./ajax`, `./fetch`, `./testing`, `./webSocket`.
 | `Subscription` | ✅ | observable, subscription |
 | `TimeoutError` | ✅ | certification |
 | `UnsubscriptionError` | ✅ | certification |
-| `VirtualAction` | ✅ | compat-closure |
+| `VirtualAction` | ✅ | compat-closure, testing |
 | `VirtualTimeScheduler` | ✅ | compat-closure |
 | `__esModule` | ✅ | package gate (`tools/check-package.mjs`) |
 | `animationFrame` | ✅ | compat-closure |
-| `animationFrameScheduler` | ✅ | compat-closure |
-| `animationFrames` | ✅ | compat-closure |
+| `animationFrameScheduler` | ✅ | compat-closure, testing |
+| `animationFrames` | ✅ | compat-closure, testing |
 | `asap` | ✅ | certification |
-| `asapScheduler` | ✅ | certification, compat-closure, scheduler |
+| `asapScheduler` | ✅ | certification, compat-closure, scheduler, testing |
 | `async` | ✅ | certification |
-| `asyncScheduler` | ✅ | certification, compat-closure, scheduler |
+| `asyncScheduler` | ✅ | certification, compat-closure, scheduler, testing |
 | `audit` | ✅ | temporal |
 | `auditTime` | ✅ | temporal |
 | `bindCallback` | ✅ | creation-interop |
@@ -68,16 +69,16 @@ the root-export mission: `./ajax`, `./fetch`, `./testing`, `./webSocket`.
 | `concatMap` | ✅ | creation-interop, flattening, flattening-operators |
 | `concatMapTo` | ✅ | flattening-operators |
 | `concatWith` | ✅ | coordination |
-| `config` | ✅ | sink |
+| `config` | ✅ | sink, testing |
 | `connect` | ✅ | sharing |
 | `connectable` | ✅ | sharing |
 | `count` | ✅ | boundary-collection |
 | `debounce` | ✅ | temporal |
-| `debounceTime` | ✅ | temporal |
+| `debounceTime` | ✅ | temporal, testing |
 | `default` | ✅ | package gate (`tools/check-package.mjs`) |
 | `defaultIfEmpty` | ✅ | selection-gating |
 | `defer` | ✅ | creation-interop |
-| `delay` | ✅ | temporal |
+| `delay` | ✅ | temporal, testing |
 | `delayWhen` | ✅ | compat-closure, temporal |
 | `dematerialize` | ✅ | materialization-tail |
 | `distinct` | ✅ | projection-querying |
@@ -107,18 +108,18 @@ the root-export mission: `./ajax`, `./fetch`, `./testing`, `./webSocket`.
 | `identity` | ✅ | certification |
 | `ignoreElements` | ✅ | materialization-tail |
 | `iif` | ✅ | creation-interop |
-| `interval` | ✅ | compat-closure, temporal |
+| `interval` | ✅ | compat-closure, temporal, testing |
 | `isEmpty` | ✅ | materialization-tail |
 | `isObservable` | ✅ | creation-interop |
 | `last` | ✅ | selection-gating |
 | `lastValueFrom` | ✅ | creation-interop |
-| `map` | ✅ | compat-closure, first-pipeline, fp-kernel, sharing |
+| `map` | ✅ | compat-closure, first-pipeline, fp-kernel, sharing, testing |
 | `mapTo` | ✅ | materialization-tail |
 | `materialize` | ✅ | materialization-tail |
 | `max` | ✅ | boundary-collection |
 | `merge` | ✅ | compat-closure, coordination, sharing |
 | `mergeAll` | ✅ | flattening-operators |
-| `mergeMap` | ✅ | creation-interop, flattening, flattening-operators |
+| `mergeMap` | ✅ | creation-interop, flattening, flattening-operators, testing |
 | `mergeMapTo` | ✅ | flattening-operators |
 | `mergeScan` | ✅ | flattening-operators |
 | `mergeWith` | ✅ | coordination |
@@ -141,7 +142,7 @@ the root-export mission: `./ajax`, `./fetch`, `./testing`, `./webSocket`.
 | `publishLast` | ✅ | compat-closure |
 | `publishReplay` | ✅ | compat-closure |
 | `queue` | ✅ | certification |
-| `queueScheduler` | ✅ | certification, compat-closure, operators-subpath, scheduler |
+| `queueScheduler` | ✅ | certification, compat-closure, operators-subpath, scheduler, testing |
 | `race` | ✅ | coordination, creation-interop |
 | `raceWith` | ✅ | coordination |
 | `range` | ✅ | compat-closure, creation-interop |
@@ -169,20 +170,20 @@ the root-export mission: `./ajax`, `./fetch`, `./testing`, `./webSocket`.
 | `switchMap` | ✅ | flattening, flattening-operators |
 | `switchMapTo` | ✅ | flattening-operators |
 | `switchScan` | ✅ | flattening-operators |
-| `take` | ✅ | compat-closure, materialization-tail, selection-gating, temporal |
+| `take` | ✅ | compat-closure, materialization-tail, selection-gating, temporal, testing |
 | `takeLast` | ✅ | selection-gating |
 | `takeUntil` | ✅ | creation-interop, selection-gating |
 | `takeWhile` | ✅ | selection-gating |
 | `tap` | ✅ | projection-querying |
 | `throttle` | ✅ | temporal |
-| `throttleTime` | ✅ | temporal |
+| `throttleTime` | ✅ | temporal, testing |
 | `throwError` | ✅ | compat-closure, creation-interop, error-resubscription, materialization-tail |
 | `throwIfEmpty` | ✅ | selection-gating |
 | `timeInterval` | ✅ | materialization-tail |
 | `timeout` | ✅ | temporal |
 | `timeoutWith` | ✅ | temporal |
-| `timer` | ✅ | compat-closure, temporal |
-| `timestamp` | ✅ | materialization-tail |
+| `timer` | ✅ | compat-closure, temporal, testing |
+| `timestamp` | ✅ | materialization-tail, testing |
 | `toArray` | ✅ | materialization-tail |
 | `using` | ✅ | creation-interop |
 | `window` | ✅ | boundary-collection |
@@ -224,10 +225,10 @@ operator-form names (`combineLatest`, `concat`, `merge`, `zip`, `race`,
 | `connect` | ✅ | sharing |
 | `count` | ✅ | boundary-collection |
 | `debounce` | ✅ | temporal |
-| `debounceTime` | ✅ | temporal |
+| `debounceTime` | ✅ | temporal, testing |
 | `default` | ✅ | package gate (`tools/check-package.mjs`) |
 | `defaultIfEmpty` | ✅ | selection-gating |
-| `delay` | ✅ | temporal |
+| `delay` | ✅ | temporal, testing |
 | `delayWhen` | ✅ | compat-closure, temporal |
 | `dematerialize` | ✅ | materialization-tail |
 | `distinct` | ✅ | projection-querying |
@@ -250,13 +251,13 @@ operator-form names (`combineLatest`, `concat`, `merge`, `zip`, `race`,
 | `ignoreElements` | ✅ | materialization-tail |
 | `isEmpty` | ✅ | materialization-tail |
 | `last` | ✅ | selection-gating |
-| `map` | ✅ | compat-closure, first-pipeline, fp-kernel, operators-subpath, sharing |
+| `map` | ✅ | compat-closure, first-pipeline, fp-kernel, operators-subpath, sharing, testing |
 | `mapTo` | ✅ | materialization-tail |
 | `materialize` | ✅ | materialization-tail |
 | `max` | ✅ | boundary-collection |
 | `merge` | ✅ | compat-closure, coordination, operators-subpath, sharing |
 | `mergeAll` | ✅ | flattening-operators |
-| `mergeMap` | ✅ | creation-interop, flattening, flattening-operators |
+| `mergeMap` | ✅ | creation-interop, flattening, flattening-operators, testing |
 | `mergeMapTo` | ✅ | flattening-operators |
 | `mergeScan` | ✅ | flattening-operators |
 | `mergeWith` | ✅ | coordination |
@@ -296,18 +297,18 @@ operator-form names (`combineLatest`, `concat`, `merge`, `zip`, `race`,
 | `switchMap` | ✅ | flattening, flattening-operators |
 | `switchMapTo` | ✅ | flattening-operators |
 | `switchScan` | ✅ | flattening-operators |
-| `take` | ✅ | compat-closure, materialization-tail, selection-gating, temporal |
+| `take` | ✅ | compat-closure, materialization-tail, selection-gating, temporal, testing |
 | `takeLast` | ✅ | selection-gating |
 | `takeUntil` | ✅ | creation-interop, selection-gating |
 | `takeWhile` | ✅ | selection-gating |
 | `tap` | ✅ | projection-querying |
 | `throttle` | ✅ | temporal |
-| `throttleTime` | ✅ | temporal |
+| `throttleTime` | ✅ | temporal, testing |
 | `throwIfEmpty` | ✅ | selection-gating |
 | `timeInterval` | ✅ | materialization-tail |
 | `timeout` | ✅ | temporal |
 | `timeoutWith` | ✅ | temporal |
-| `timestamp` | ✅ | materialization-tail |
+| `timestamp` | ✅ | materialization-tail, testing |
 | `toArray` | ✅ | materialization-tail |
 | `window` | ✅ | boundary-collection |
 | `windowCount` | ✅ | boundary-collection |
@@ -318,6 +319,17 @@ operator-form names (`combineLatest`, `concat`, `merge`, `zip`, `race`,
 | `zip` | ✅ | coordination, creation-interop, operators-subpath |
 | `zipAll` | ✅ | compat-closure |
 | `zipWith` | ✅ | coordination |
+
+## Subpath exports (`rxjs/testing`)
+
+The marble-testing surface (M21): `TestScheduler` is traced by the
+`testing` suite against the oracle's own `TestScheduler`.
+
+| Export | Status | Differential suites |
+| --- | --- | --- |
+| `TestScheduler` | ✅ | testing |
+| `__esModule` | ✅ | package gate (`tools/check-package.mjs`) |
+| `default` | ✅ | package gate (`tools/check-package.mjs`) |
 
 ## Functional root extensions
 

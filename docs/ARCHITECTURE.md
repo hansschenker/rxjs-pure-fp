@@ -463,3 +463,43 @@ cross-checks the import, require, ES-module, and declaration views.
 derives the per-name evidence (`docs/CERTIFICATION-MATRIX.md`) from the
 differential suites' oracle imports, failing on any uncovered export. The
 matrix and `feature-parity-list.md` are generated artifacts.
+
+# M21 — Marble testing
+
+`src/testing/` composes RxJS's `TestScheduler` over the M18 virtual-time
+machine, for the `rxjs/testing` subpath:
+
+```text
+testing/test-message.ts     TestMessage / SubscriptionLog records; the SubscriptionLoggable mixin as a logger closure
+testing/marbles.ts          parseMarbles / parseMarblesAsSubscriptions as pure functions of (diagram, mode, factor)
+testing/cold-observable.ts  branded Observable function carrying messages + log; messages as scheduled actions
+testing/hot-observable.ts   anonymous Subject over an inner hub and a logging source; setup() schedules the pushes
+testing/test-scheduler.ts   the record: virtual-time members, expectation closures, run mode, the factory statics
+testing/index.ts            the rxjs/testing subpath entry
+```
+
+The subclass relationship (`TestScheduler extends VirtualTimeScheduler`)
+becomes composition: the record delegates `now`/`schedule` to a virtual
+scheduler built with a live `maxFrames` policy (`Infinity` while `runMode`),
+exposes `frame`/`index`/`maxFrames` as getters, and spreads the queue
+protocol carrier (`virtualTimeProtocol`) so it is a valid host for
+`VirtualAction` — the same carrier pattern as the subscription parentage
+protocol and the connectable's connection protocol. Expectations are
+closures registered for the next `flush`; `flush` sets up the pending hot
+observables, drains virtual time, and asserts every ready expectation.
+
+## Run-mode delegation
+
+RxJS's run mode fills `delegate` slots on six provider singletons. The
+kernel's host edge is already one record (`runtime.ts`'s `timerHost`), so
+the seam is one closure-held slot behind it — `installTimerHostDelegate` —
+consulted per call, the native host answering otherwise. The TestScheduler's
+delegate turns intervals, immediates, and timeouts into virtual actions with
+RxJS's priority at a shared frame and reads both clocks from the virtual
+frame; the animator queues frame callbacks until `animate` fires them. The
+deferral edge (`RuntimeEnv.defer` in both the default and the config-backed
+environment) rides `timerHost.timeout` since M21, so it is delegated too.
+This is a documented process-wide topology — installed for the duration of
+`run()`, never per execution — and the kernel purity rules still hold: the
+slot is closure state, not a module-scope variable, and host access stays
+confined to `runtime.ts`.
