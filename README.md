@@ -1208,6 +1208,24 @@ npm run verify
 
 `npm run verify` runs typecheck, repository lint, architecture validation, unit tests, differential tests, builds, strict export parity, distribution architecture checks, the package-shape gate, and the certification matrix (which also regenerates `feature-parity-list.md` and `docs/CERTIFICATION-MATRIX.md`).
 
+## Examples
+
+Two applications built on the library straight from `src/`, each with a
+scripted demo, an interactive CLI, and its own README:
+
+- `examples/todo-mvu/` — a CRUDL todo app in Model-View-Update style: one
+  `scan` as the state machine, a `Cmd` effect ADT interpreted by `mergeMap`.
+- `examples/shopping-cart/` — a business-level shopping cart: pricing rules,
+  debounced and cancellable stock checks, a checkout that reserves inventory
+  and authorizes payment with back-off retries, a deadline, and compensation;
+  its async flows are asserted to the millisecond with `TestScheduler`
+  marble tests in virtual time.
+
+```bash
+node examples/shopping-cart/main.ts --demo
+node --test examples/shopping-cart/cart.test.mjs
+```
+
 ## Reference material
 
 `reference/rxjs-7.8.2-es3/` is immutable anatomy material from the verified ES3/CommonJS experiment.
